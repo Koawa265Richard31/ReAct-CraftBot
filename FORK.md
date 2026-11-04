@@ -50,7 +50,7 @@ cp -f /tmp/numen-final.jar /data/mcpack/mods/numen-forge-1.20.1-0.1.4.1-all.jar
 systemctl restart mc
 
 # 客户端（保持 sha1 一致）
-scp -i ~/.ssh/rainyun-mc -P 49223 root@<host>:/tmp/numen-final.jar \
+scp -i ~/.ssh/<key> -P <port> root@<host>:/tmp/numen-final.jar \
     "/d/mc/mc/versions/香草纪元：食旅纪行/mods/numen-forge-1.20.1-0.1.4.1-all.jar"
 
 sha1sum <两侧 jar>   # 必须一致

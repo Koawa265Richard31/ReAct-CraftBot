@@ -35,6 +35,19 @@ logs
 # datagen output — regenerated via ./gradlew :fabric:runDatagen + :neoforge:runData
 **/generated/
 
+# 上游美术资源（All Rights Reserved，见 licenses/ASSETS.txt）：不随本仓库分发。
+# 需要完整客户端表现时，从上游官方发布补齐，或换成本项目自绘资源。
+api/common/src/main/resources/assets/numen_api/textures/
+api/common/src/main/resources/numen_api.png
+core/common/src/main/resources/numen.png
+assets/branding/
+api/docs/branding/
+tools/ui-textures/
+api/tools/ui-textures/
+assets/showcase/
+assets/numen-demo.gif
+assets/diagrams/
+
 # Claude local tooling (skills, settings, etc.) — not mod source
 .claude/
 
