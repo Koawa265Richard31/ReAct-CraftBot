@@ -11,6 +11,8 @@
 | `scripts/` | 构建、语言包注入、部署脚本 | **MIT** |
 | `skills/` | 给 agent 用的技能文档 | **MIT** |
 
+> `dsh/`、`scripts/`、`skills/` 三个目录随 P1（工具逐函数暴露）一并加入；当前提交里可能尚未存在。
+
 ## 为什么是 LGPL-3.0
 
 上游 Numen 的 `gradle.properties` 声明 `license=LGPL-3.0-only`，其 `LICENSE` 为 LGPL-3.0 全文。
