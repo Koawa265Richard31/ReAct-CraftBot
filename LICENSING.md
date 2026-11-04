@@ -7,11 +7,14 @@
 | 路径 | 内容 | 协议 |
 |---|---|---|
 | 除下列以外的全部源码 | 源自 Numen 的 Java 代码及其修改 | **LGPL-3.0-only**（见 `LICENSE`） |
-| `dsh/` | 把 Numen 接到 DeepSeek Harness 的胶水：心跳插件、preset 片段、人格 | **MIT**（见 `LICENSE-MIT`） |
+| `dsh/` | 把 Numen 接到 DeepSeek Harness 的胶水：心跳插件、preset 片段 | **MIT**（见 `LICENSE-MIT`） |
 | `scripts/` | 构建、语言包注入、部署脚本 | **MIT** |
 | `skills/` | 给 agent 用的技能文档 | **MIT** |
 
 > `dsh/`、`scripts/`、`skills/` 三个目录随 P1（工具逐函数暴露）一并加入；当前提交里可能尚未存在。
+>
+> **人格文件（`persona*.md`）不含在本仓库内**：它是本项目自己的角色设定，属于私人内容。
+> 仓库里的 preset 片段会引用一个空的 `persona.md` 占位，使用者自己写。
 
 ## 为什么是 LGPL-3.0
 
