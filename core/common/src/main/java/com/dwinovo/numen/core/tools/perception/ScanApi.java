@@ -291,7 +291,7 @@ public final class ScanApi {
         return out.toString();
     }
 
-    /** RLE 还原成一行的格子;{\code *} 后没有数字时按单字符算(只防手改出的坏串,编码器不会产出)。 */
+    /** RLE 还原成一行的格子;{@code *} 后没有数字时按单字符算(只防手改出的坏串,编码器不会产出)。 */
     static String rleDecode(String rle) {
         StringBuilder out = new StringBuilder();
         int i = 0;

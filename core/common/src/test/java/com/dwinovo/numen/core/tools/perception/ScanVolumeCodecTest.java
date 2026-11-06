@@ -118,50 +118,54 @@ class ScanVolumeCodecTest {
 
     @Test
     void everyLegendLetterAppearsInTheRows() {
-        // 与 volume() 同一条路径的缩样:先扫描出字母,再编码行,再对账 legend ⊆ 行里出现过的字符
+        // 与 volume() 同一条路径的缩样:先扫出字母,再编码行,再对账 legend 的每个键(条目 ch=id 的首字符)都在行里出现过
         Map<Character, String> letters = new LinkedHashMap<>();
         java.util.Set<Character> used = new java.util.LinkedHashSet<>();
         String[] layers = {"....aa##..", "??..bb...", "...aabb..."}; // 未做 RLE 的格子串(不含 * 等元字符)
-        java.util.Set<Character> perLayerUsed = new java.util.LinkedHashSet<>();
         for (int i = 0; i < layers.length; i++) {
+            java.util.Set<Character> perLayerUsed = new java.util.LinkedHashSet<>();
             StringBuilder row = new StringBuilder();
-            perLayerUsed.clear();
             for (char ch : layers[i].toCharArray()) {
                 if (ch == 'a' || ch == 'b') {
-                    if (!letters.containsValue(ch == 'a' ? "minecraft:stone" : "minecraft:water")) {
-                        char letter = ScanApi.letterOf(letters.size());
-                        letters.put(letter, ch == 'a' ? "minecraft:stone" : "minecraft:water");
+                    String id = ch == 'a' ? "minecraft:stone" : "minecraft:water";
+                    if (!letters.containsValue(id)) {
+                        letters.put(ScanApi.letterOf(letters.size()), id);
                     }
                     perLayerUsed.add(ch);
                 }
                 row.append(ch);
             }
-            String encoded = ScanApi.rleEncode(row.toString());
             used.addAll(perLayerUsed);
-            // 该层的 legend 里的每个字母都在这一层的行里出现过
-            String layerLegend = ScanApi.legend(letters, perLayerUsed);
-            for (char letter : "abcdefghijklmnopqrstuvwxyz".toCharArray()) {
-                if (layerLegend.indexOf(letter) >= 0) {
-                    assertTrue(decodedLetters(encoded).indexOf(letter) >= 0,
-                            "layer " + i + ": legend letter " + letter + " must appear in its rows");
-                }
+            String decoded = decodedLetters(ScanApi.rleEncode(row.toString()));
+            // 该层的 legend 的每个键都在这一层的行里出现过(对键,不对 id 文本)
+            for (char key : legendKeys(ScanApi.legend(letters, perLayerUsed))) {
+                assertTrue(decoded.indexOf(key) >= 0,
+                        "layer " + i + ": legend key " + key + " must appear in its rows");
             }
         }
-        // 整份 legend:每个字母都在某一层的行里出现过
+        // 整份 legend:每个键都在某一层的行里出现过
         String legend = ScanApi.legend(letters, used);
-        for (char letter : "abcdefghijklmnopqrstuvwxyz".toCharArray()) {
-            if (legend.indexOf(letter) >= 0) {
-                boolean seen = false;
-                for (String layer : layers) {
-                    if (decodedLetters(ScanApi.rleEncode(layer)).indexOf(letter) >= 0) {
-                        seen = true;
-                    }
+        for (char key : legendKeys(legend)) {
+            boolean seen = false;
+            for (String layer : layers) {
+                if (decodedLetters(ScanApi.rleEncode(layer)).indexOf(key) >= 0) {
+                    seen = true;
                 }
-                assertTrue(seen, "legend letter " + letter + " must appear in some row");
+            }
+            assertTrue(seen, "legend key " + key + " must appear in some row");
+        }
+        assertEquals("a=minecraft:stone b=minecraft:water", legend);
+    }
+
+    /** legend 条目的键:每条 {@code ch=id} 的首字符(不看 id 文本里的字母)。 */
+    private static java.util.List<Character> legendKeys(String legend) {
+        java.util.List<Character> keys = new java.util.ArrayList<>();
+        for (String entry : legend.split(" ")) {
+            if (entry.length() >= 2 && entry.charAt(1) == '=') {
+                keys.add(entry.charAt(0));
             }
         }
-        assertTrue(legend.contains("a=minecraft:stone"));
-        assertTrue(legend.contains("b=minecraft:water"));
+        return keys;
     }
 
     /** 测试侧的 RLE 还原(与 ScanApi.rleDecode 独立写一遍,对得上才算往返成立)。 */
