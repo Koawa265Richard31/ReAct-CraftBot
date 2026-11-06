@@ -151,6 +151,7 @@ dependencies {
     compileOnly project(':plugins:kaleidoscope')
     compileOnly project(':plugins:curios')
     compileOnly project(':plugins:ftbquests')
+    compileOnly project(':plugins:places')
 
     minecraft "net.minecraftforge:forge:${minecraft_version}-${forge_version}"
     // refmap 由 mixin 注解处理器在编译期生成——AP 必须显式挂上,否则 mixin 照样编译
@@ -246,6 +247,7 @@ tasks.matching { it.name == 'jar' || it.name == 'jarJar' }.configureEach {
     it.from({ project(':plugins:kaleidoscope').sourceSets.main.output })
     it.from({ project(':plugins:curios').sourceSets.main.output })
     it.from({ project(':plugins:ftbquests').sourceSets.main.output })
+    it.from({ project(':plugins:places').sourceSets.main.output })
     // 联动自己的 mixin 配置(车万女仆的喂食那一处)只在成品里挂:开发运行里联动不在类路径上,放进上面 mixin{} 的 config 就会
     // 变成每个开发运行的 --mixin.config 而找不到文件。目标模组不在场时它的 mixin 是 @Pseudo,静默跳过。
     it.doFirst {

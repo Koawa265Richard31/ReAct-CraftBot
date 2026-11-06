@@ -24,7 +24,7 @@ class ScanVolumeCodecTest {
         assertEquals("a*3b", ScanApi.rleEncode("aaab"));
         assertEquals("a", ScanApi.rleEncode("a"));
         assertEquals("a*2b", ScanApi.rleEncode("aab"));
-        assertEquals("?*2.#*3ab", ScanApi.rleEncode("??..###ab"));
+        assertEquals("?*2.*2#*3ab", ScanApi.rleEncode("??..###ab"));
         assertEquals("", ScanApi.rleEncode(""));
     }
 
@@ -33,14 +33,14 @@ class ScanVolumeCodecTest {
         assertEquals(".........", ScanApi.rleDecode(".*9"));
         assertEquals("aaab", ScanApi.rleDecode("a*3b"));
         assertEquals("a", ScanApi.rleDecode("a"));
-        assertEquals("??..###ab", ScanApi.rleDecode("?*2.#*3ab"));
+        assertEquals("??..###ab", ScanApi.rleDecode("?*2.*2#*3ab"));
         assertEquals("", ScanApi.rleDecode(""));
     }
 
     @Test
     void rleRoundTripsBothWays() {
-        String[] cells = {".", "#", "???", "a", "ab", "ba", "aabbaabb", ".*.", ".........", "aaab",
-                "....................", "?..##.a*2b?"};
+        String[] cells = {".", "#", "???", "a", "ab", "ba", "aabbaabb", ".#.", ".........", "aaab",
+                "....................", "?..##.ab?"}; // 全是合法格子字符(* 是计数标记,不出现在格子里)
         for (String row : cells) {
             assertEquals(row, ScanApi.rleDecode(ScanApi.rleEncode(row)), "encode→decode: " + row);
             assertEquals(ScanApi.rleEncode(row), ScanApi.rleEncode(ScanApi.rleDecode(ScanApi.rleEncode(row))),

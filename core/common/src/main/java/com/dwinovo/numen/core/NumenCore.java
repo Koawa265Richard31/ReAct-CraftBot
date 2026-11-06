@@ -115,6 +115,8 @@ public final class NumenCore {
             com.dwinovo.numen.core.tools.inventory.GearApi.install(numen);
             com.dwinovo.numen.core.tools.inventory.CreativeApi.install(numen);
             com.dwinovo.numen.core.tools.time.TimeApi.install(numen);
+            // 命名地点：她自己的记忆点，不依赖任何外部模组，无条件装。
+            com.dwinovo.numen.plugins.places.NumenPlaces.install(numen);
         });
     }
 

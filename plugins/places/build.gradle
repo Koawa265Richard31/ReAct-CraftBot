@@ -1,0 +1,16 @@
+plugins {
+    // 只写原版 MC 与 numen api 的联动:对着原版编译(VanillaGradle,与 :api:common 同一条路),
+    // 三个加载器都能跑 —— 见 buildSrc 的 numen-plugin.gradle 的分工说明。
+    id 'org.spongepowered.gradle.vanilla' version '0.2.1-SNAPSHOT'
+    id 'numen-plugin'
+}
+
+minecraft {
+    version(minecraft_version)
+}
+
+dependencies {
+    // 瘦 api jar 取 common 那份:三加载器通跑的联动按 numen-plugin.gradle 的规矩选 :api:common。
+    // 本联动不接任何目标模组,没有 fg.deobf、没有第三方仓库。
+    compileOnly files(project(':api:common').tasks.named('apiJar'))
+}

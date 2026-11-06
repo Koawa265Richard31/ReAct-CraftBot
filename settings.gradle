@@ -72,3 +72,5 @@ include('plugins:tlm')
 include('plugins:kaleidoscope')
 include('plugins:curios')
 include('plugins:ftbquests')
+// 她自己的命名地点:不接目标模组、三加载器通跑(见 plugins/places/build.gradle 头注)。
+include('plugins:places')
