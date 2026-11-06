@@ -59,14 +59,9 @@ public final class PlacesApi {
                 + "with the route planner.", PlacesApi.class);
     }
 
-    /** 一个位置:{@code x/y/z} 平铺在表顶(plan 的 {@code to} 吃的就是这三个键)。 */
-    public record Pos(@Doc("East/west.") double x,
-                      @Doc("Altitude.") double y,
-                      @Doc("North/south.") double z) {}
-
     /** 一个点摊开。 */
     @Doc("One of your places.")
-    public record Spot(@Flatten Pos at,
+    public record Spot(@Doc("Where it is; hand it straight to plan({to = ...}).") BlockPos pos,
                        @Doc("Its name.") String name,
                        @Doc("Which dimension it lives in, e.g. minecraft:overworld.") String dim,
                        @Doc("How far it is, in blocks; none when it is in another dimension.")
@@ -75,7 +70,7 @@ public final class PlacesApi {
 
     /** 标完(或盖掉)了什么。 */
     @Doc("What a mark did.")
-    public record Marked(@Flatten Pos at,
+    public record Marked(@Doc("Where it is.") BlockPos pos,
                          @Doc("The spot's name.") String name,
                          @Doc("Which dimension it is in.") String dim,
                          @Doc("true = a spot by this name in this dimension was already there and is overwritten.")
@@ -83,7 +78,7 @@ public final class PlacesApi {
 
     /** 列出来的一个点。 */
     @Doc("One row of your place list.")
-    public record Listed(@Flatten Pos at,
+    public record Listed(@Doc("Where it is.") BlockPos pos,
                          @Doc("Its name.") String name,
                          @Doc("Which dimension it is in.") String dim,
                          @Doc("How far, in blocks; none in another dimension.") Optional<Double> distance,
@@ -129,7 +124,7 @@ public final class PlacesApi {
     @Example("numen.place.mark(\"home\", {x = 120, y = 64, z = -35})")
     @Example("numen.place.mark(\"nether_hub\", {x = 12, y = 70, z = 400, dim = \"minecraft:the_nether\"})")
     @Note("Instant. Same name in the same dimension overwrites; the same name in another dimension is its own "
-            + "spot. get hands the spot back as a Pos, so plan({to = spot}) walks you home.")
+            + "spot. get hands the spot back as a table with a pos, so plan({to = spot}) walks you home.")
     @Note("Your spots are yours alone: another companion does not see them, and they live in the save's world "
             + "data, not in any config folder.")
     @SeeAlso({"numen.place.get", "numen.place.list"})
@@ -151,16 +146,16 @@ public final class PlacesApi {
         }
         BlockPos at = hasCoords ? checkedAt(her, args) : her.blockPosition();
         boolean replaced = PlacesStore.of(server).put(her.getUUID(), dim, name, at, System.currentTimeMillis());
-        return new Marked(posOf(at), name, dim, replaced);
+        return new Marked(at, name, dim, replaced);
     }
 
     /**
      * 取一个点:缺省取她<b>当前维度</b>下的那个;当前维度没有但别的维度标过时,报 not_found 并把别的维度报给她
      * —— 不替她跨维度猜。取到即"用到",last_used 随之更新。
      */
-    @Fn("One of your places, as a Pos you can hand straight to the route planner's to.")
+    @Fn("One of your places, with a pos you can hand straight to the route planner's to.")
     @Example("local spot = numen.place.get(\"home\")\nnumen.route.plan({to = spot})")
-    @Note("Spot is a Pos: x/y/z sit at its top; name, dim and last_used ride along as extra keys, which the "
+    @Note("Spot carries a pos (x/y/z) plus name, dim and last_used as extra keys, which the "
             + "planner's to does not read.")
     @Note("It takes the spot in the dimension you stand in now. A same-named spot in another dimension is not "
             + "returned; the failure names where you did mark it.")
@@ -311,16 +306,14 @@ public final class PlacesApi {
     // ---- 私有工具 ----
 
     private static Spot toSpot(Stored row, NumenPlayer her) {
-        return new Spot(posOf(row.blockPos()), row.name(), row.dim(), distanceTo(her, row), row.lastUsed());
+        return new Spot(row.blockPos(), row.name(), row.dim(), distanceTo(her, row), row.lastUsed());
     }
 
     private static Listed toListed(Stored row, NumenPlayer her) {
-        return new Listed(posOf(row.blockPos()), row.name(), row.dim(), distanceTo(her, row), row.lastUsed());
+        return new Listed(row.blockPos(), row.name(), row.dim(), distanceTo(her, row), row.lastUsed());
     }
 
-    private static Pos posOf(BlockPos at) {
-        return new Pos(at.getX(), at.getY(), at.getZ());
-    }
+
 
     /** 距离,米;别的维度没有数可比,给空。量法照 MoveApi.flyTo(到格心)。 */
     private static Optional<Double> distanceTo(NumenPlayer her, Stored row) {
