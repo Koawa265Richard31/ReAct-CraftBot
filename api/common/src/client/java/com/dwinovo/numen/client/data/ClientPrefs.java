@@ -29,6 +29,8 @@ public final class ClientPrefs {
     private static boolean talkHint = true;
     private static boolean messageNotices = true;
     private static boolean statusHud = true;
+    /** 面板角色页的穿戴写权限总开关:默认关。开着才允许点穿戴槽/背包格给同伴穿脱(经 GearSwapRequest)。 */
+    private static boolean gearWriteAllowed = false;
     /** 预留:面板关掉时屏幕底部那条状态小条。渲染侧尚未实现(全树无人读它),
      *  面板左下角的开关现接的是 {@link #statusHud};别再把新开关往这绑。 */
     private static boolean miniHud = true;
@@ -50,6 +52,7 @@ public final class ClientPrefs {
             if (o.has("talkHint")) talkHint = o.get("talkHint").getAsBoolean();
             if (o.has("messageNotices")) messageNotices = o.get("messageNotices").getAsBoolean();
             if (o.has("statusHud")) statusHud = o.get("statusHud").getAsBoolean();
+            if (o.has("gearWriteAllowed")) gearWriteAllowed = o.get("gearWriteAllowed").getAsBoolean();
             if (o.has("miniHud")) miniHud = o.get("miniHud").getAsBoolean();
             if (o.has("initiative")) initiative = EventQueue.clampLevel(o.get("initiative").getAsInt());
             if (o.has("recentCommands") && o.get("recentCommands").isJsonArray()) {
@@ -99,6 +102,16 @@ public final class ClientPrefs {
         persist();
     }
 
+    /** 穿戴写权限总开关(面板角色页页头的 Toggle):关着时穿戴槽/背包格一律不可点。 */
+    public static boolean gearWriteAllowed() {
+        return gearWriteAllowed;
+    }
+
+    public static void setGearWriteAllowed(boolean enabled) {
+        gearWriteAllowed = enabled;
+        persist();
+    }
+
     /** 预留,暂无读取方:渲染侧尚未实现底部小条;面板左下角开关现接的是 statusHud。 */
     public static boolean miniHud() {
         return miniHud;
@@ -144,6 +157,7 @@ public final class ClientPrefs {
             o.addProperty("talkHint", talkHint);
             o.addProperty("messageNotices", messageNotices);
             o.addProperty("statusHud", statusHud);
+            o.addProperty("gearWriteAllowed", gearWriteAllowed);
             o.addProperty("miniHud", miniHud);
             o.addProperty("initiative", initiative);
             com.google.gson.JsonArray recent = new com.google.gson.JsonArray();

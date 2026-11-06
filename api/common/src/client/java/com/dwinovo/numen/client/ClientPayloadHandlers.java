@@ -59,6 +59,8 @@ public final class ClientPayloadHandlers {
         ClientPayloadSink.respawn = ClientPayloadHandlers::handleRespawn;
         ClientPayloadSink.pathDebug = PathDebugState::accept;
         ClientPayloadSink.uiAction = ClientPayloadHandlers::handleUiAction;
+        // M2 穿脱回执:面板角色页认领在飞的那笔,按回执的 wornAfter/ownerAfter 重画
+        ClientPayloadSink.gearSwap = com.dwinovo.numen.client.screen.panel.CharacterPage::acceptGearSwapResult;
     }
 
     private static void handleCompanionList(CompanionListPayload p) {

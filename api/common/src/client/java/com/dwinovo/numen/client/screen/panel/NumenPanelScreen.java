@@ -165,6 +165,8 @@ public final class NumenPanelScreen extends Screen {
 
     private static final UiRoot ui = new UiRoot();
     private static Toggle minibarToggle;
+    /** 角色页页头的穿戴写权限总开关(偏好落 ClientPrefs.gearWriteAllowed);显隐与定界在 drawPage 跟角色页走。 */
+    private static Toggle gearWriteToggle;
     private static Button abortButton;
     private static int selected = PAGE_CHARACTER;
     private static long abortArmedAt;
@@ -249,6 +251,8 @@ public final class NumenPanelScreen extends Screen {
         abortButton = ui.add(new Button(abortLabel, Button.Style.DANGER, NumenPanelScreen::onAbortClicked));
         ui.add(new Button(resetLabel, Button.Style.LINK, NumenPanelScreen::onResetClicked));
         ui.add(new Button(doneLabel, Button.Style.NORMAL, NumenPanelScreen::closePanel));
+        // 加在最后(下标 4):layoutWidgets 按加入顺序取 get(2)/get(3) 摆「重置」「完成」,别挤乱它们的下标
+        gearWriteToggle = ui.add(new Toggle(ClientPrefs.gearWriteAllowed(), ClientPrefs::setGearWriteAllowed));
         layoutWidgets();
         ui.setViewportHeight(frameH);
     }
@@ -520,6 +524,16 @@ public final class NumenPanelScreen extends Screen {
     private static void drawPage(GuiGraphics g, UiTheme t) {
         pageRect.set(RAIL_W + PAD, TITLE_H + PAD, frameW - RAIL_W - PAD * 2,
                 frameH - TITLE_H - PAD - FOOTER_H);
+        // 角色页页头的写权限开关:只有角色页在场才显形,贴在写权限行(状态条下面那行)的右端;
+        // 标签行本体是 CharacterPage.drawWriteRow 画的,这里只摆 Toggle 控件
+        if (gearWriteToggle != null) {
+            boolean on = selected == PAGE_CHARACTER && PAGES[PAGE_CHARACTER] != null;
+            gearWriteToggle.setVisible(on);
+            if (on) {
+                gearWriteToggle.setBounds(pageRect.x + pageRect.w - PAD - 26,
+                        pageRect.y + CharacterPage.STATUS_H + 1, 26, 14);
+            }
+        }
         Page p = PAGES[selected];
         if (p == null) {
             // 页面还没接进来:占位句居中

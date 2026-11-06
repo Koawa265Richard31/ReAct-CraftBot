@@ -432,6 +432,14 @@ public final class ModLanguageData {
         public static final String PANEL_CHAR_BACKPACK_EMPTY = "numen.panel.char.backpack_empty";
         public static final String PANEL_CHAR_HOTBAR         = "numen.panel.char.hotbar";
         public static final String PANEL_CHAR_EXTRA          = "numen.panel.char.extra";
+        /** M2 穿脱交互:写权限总开关的标签,与点不了时格上的悬停提示。 */
+        public static final String PANEL_CHAR_WRITE          = "numen.panel.char.write";
+        public static final String PANEL_CHAR_WRITE_LOCKED   = "numen.panel.char.write_locked";
+        /** 一笔在飞时再点任何格子的提示;以及本地定不下目标槽时的提示。 */
+        public static final String PANEL_CHAR_WRITE_PENDING  = "numen.panel.char.write_pending";
+        public static final String PANEL_CHAR_WRITE_NOSLOT   = "numen.panel.char.write_noslot";
+        /** 回执超时退回原状时页头那句。 */
+        public static final String PANEL_CHAR_WRITE_TIMEOUT  = "numen.panel.char.write_timeout";
 
         // 设置页(SettingsPage)外接脑区块与二级列表:状态组/8766 组/文件组/工具组的
         // 标签、行注与空态,搬迁时从字面量收进来,键名照面板骨架的 panel 段。
@@ -1041,6 +1049,11 @@ public final class ModLanguageData {
         adder.add(Keys.PANEL_CHAR_BACKPACK_EMPTY, "(Backpack not synced)");
         adder.add(Keys.PANEL_CHAR_HOTBAR,         "Hotbar");
         adder.add(Keys.PANEL_CHAR_EXTRA,          "Extra space");
+        adder.add(Keys.PANEL_CHAR_WRITE,          "Let me touch her backpack");
+        adder.add(Keys.PANEL_CHAR_WRITE_LOCKED,   "Write access is off");
+        adder.add(Keys.PANEL_CHAR_WRITE_PENDING,  "Previous action is still in flight");
+        adder.add(Keys.PANEL_CHAR_WRITE_NOSLOT,   "Can't tell which slot takes this");
+        adder.add(Keys.PANEL_CHAR_WRITE_TIMEOUT,  "No receipt arrived — look her over, then retry");
 
         // SettingsPage: external-brain block labels, row notes, empty states.
         adder.add(Keys.PANEL_SETTINGS_EXTERNAL,         "External brain");
@@ -1629,6 +1642,11 @@ public final class ModLanguageData {
         adder.add(Keys.PANEL_CHAR_BACKPACK_EMPTY, "（背包未同步）");
         adder.add(Keys.PANEL_CHAR_HOTBAR,         "快捷栏");
         adder.add(Keys.PANEL_CHAR_EXTRA,          "额外空间");
+        adder.add(Keys.PANEL_CHAR_WRITE,          "允许我动她的背包");
+        adder.add(Keys.PANEL_CHAR_WRITE_LOCKED,   "写权限关着");
+        adder.add(Keys.PANEL_CHAR_WRITE_PENDING,  "上一个操作还没回来");
+        adder.add(Keys.PANEL_CHAR_WRITE_NOSLOT,   "定不下穿到哪个槽");
+        adder.add(Keys.PANEL_CHAR_WRITE_TIMEOUT,  "没等到回执,请查看她的状态后再试");
 
         // 设置页:外接脑区块与二级列表的标签、行注与空态。
         adder.add(Keys.PANEL_SETTINGS_EXTERNAL,         "外接脑");

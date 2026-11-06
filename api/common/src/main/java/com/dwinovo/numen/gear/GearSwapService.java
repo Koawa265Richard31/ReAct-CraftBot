@@ -81,7 +81,7 @@ public final class GearSwapService {
 
     /** 已受理、还没等到回执的一笔。 */
     private record Flight(MinecraftServer server, UUID body, String slotName, int ownerSlot,
-                          long submittedMs) {}
+                          ItemStack moved, long submittedMs) {}
 
     /** (主人,txId) → 结论,最近 {@link #REMEMBERED} 个;重放原样回,不重新动手。 */
     private static final Map<OwnerTx, Verdict> LAST_RESULT = new LinkedHashMap<>(16, 0.75f, true) {
@@ -247,7 +247,7 @@ public final class GearSwapService {
             return;
         }
         FLIGHT.put(key, new Flight(body.server, body.getUUID(), slotName, ownerSlot,
-                System.currentTimeMillis()));
+                (wear ? req.expectOwner() : req.expectWorn()).copy(), System.currentTimeMillis()));
     }
 
     /** 一条经门而入的调用参数:穿上点名物品与槽;取下点名槽与要摘的那件。 */
@@ -279,7 +279,13 @@ public final class GearSwapService {
         }
         Verdict verdict = verdictOf(replyJson);
         NumenPlayer body = NumenPlayer.findByUuid(flight.server(), flight.body());
-        conclude(key, flight.server(), verdict, endsAt(body, flight.slotName(), flight.ownerSlot()));
+        // 取下时提交当刻没有背包格可钉(物品还在身上),这里按内容找回它落到哪一格,
+        // 否则回执的 ownerAfter 永远是空,面板要等下一份快照才显示——显示层陈旧一整拍。
+        int slot = flight.ownerSlot();
+        if (slot < 0 && !flight.moved().isEmpty()) {
+            slot = slotOf(body, flight.moved());
+        }
+        conclude(key, flight.server(), verdict, endsAt(body, flight.slotName(), slot));
     }
 
     /** 校验不过的当场结论:记下、回执,不动任何东西。 */
@@ -440,6 +446,21 @@ public final class GearSwapService {
             inv.setItem(i, before.backpack().get(i).copy());
         }
         inv.setChanged();
+    }
+
+    /** 按内容找一格:只看「同物品同组件」,不看数量(卸下的那件可能与已有堆叠并成一格)。 */
+    private static int slotOf(NumenPlayer body, ItemStack moved) {
+        if (body == null) {
+            return -1;
+        }
+        Inventory inv = body.getInventory();
+        for (int i = 0; i < inv.items.size(); i++) {
+            ItemStack one = inv.items.get(i);
+            if (!one.isEmpty() && ItemStack.isSameItemSameTags(one, moved)) {
+                return i;
+            }
+        }
+        return -1;
     }
 
     /** 两端现状:点名的穿戴位 + 按下标钉住的那格背包格(下标无效为空)。身体没了照实留空。 */
