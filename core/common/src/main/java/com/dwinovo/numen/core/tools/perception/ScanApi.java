@@ -3,6 +3,8 @@ package com.dwinovo.numen.core.tools.perception;
 import com.dwinovo.numen.agent.script.ApiError;
 import com.dwinovo.numen.agent.script.ErrorKind;
 import com.dwinovo.numen.api.NumenApi;
+import com.dwinovo.numen.core.nav.Feet;
+import com.dwinovo.numen.core.nav.Terrain;
 import com.dwinovo.numen.core.scan.BlockScan;
 import com.dwinovo.numen.core.scan.NearbyEntities;
 import com.dwinovo.numen.core.tools.ScanOps;
@@ -37,6 +39,7 @@ import net.minecraft.world.entity.monster.Monster;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.LiquidBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.Property;
 import net.minecraft.world.phys.Vec3;
@@ -44,6 +47,7 @@ import net.minecraft.world.phys.Vec3;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -53,8 +57,9 @@ import net.minecraft.util.Mth;
 import com.dwinovo.numen.pathing.body.BodyCompat;
 
 /**
- * {@code numen.scan}:看她周围——脚下一圈的地形图、某几种方块在哪、附近有谁、一格方块是什么、一格方块里装着什么、看不看得见一处。
- * 六个函数都在服务端读世界,不动世界,不占身体,什么也不存;脚本拿到的是读到的值(方块、实体都带 Pos,原样能交给下一个函数)。
+ * {@code numen.scan}:看她周围——脚下一圈的地形图、一层或一个立方体的格子、某几种方块在哪、附近有谁、一格方块是什么、
+ * 一格方块里装着什么、看不看得见一处。八个函数都在服务端读世界,不动世界,不占身体,什么也不存;脚本拿到的是读到的值
+ * (方块、实体都带 Pos,原样能交给下一个函数)。
  */
 public final class ScanApi {
 
@@ -64,12 +69,27 @@ public final class ScanApi {
     private static final int DEFAULT_ENTITY_RADIUS = 24;
     private static final double MIN_ENTITY_RADIUS = 1.0;
     private static final double MAX_ENTITY_RADIUS = 64.0;
+    /** {@code volume} 不写 {@code size} 时的边长。 */
+    static final int DEFAULT_VOLUME_SIZE = 9;
+    /** {@code volume} 边长的下限:再小就没有"一圈"可言。 */
+    static final int MIN_VOLUME_SIZE = 3;
+    /** {@code volume} 边长的上限:再大一次要读的格子就太多。 */
+    static final int MAX_VOLUME_SIZE = 17;
+    /** {@code slice} 不写 {@code radius} 时看多宽:摊开与一份默认 {@code volume} 的边长一致。 */
+    static final int DEFAULT_SLICE_RADIUS = 4;
+    /** {@code slice} 半径的范围:摊成边长 3-17,与 {@code volume} 同一个包络。 */
+    static final int MIN_SLICE_RADIUS = 1;
+    static final int MAX_SLICE_RADIUS = 8;
+    /** 格子字符:空气、没加载、字母用完(26 种方块)以外的其它方块。 */
+    private static final char AIR_CELL = '.';
+    private static final char UNLOADED_CELL = '?';
+    private static final char OTHER_CELL = '#';
 
     private ScanApi() {}
 
     public static void install(NumenApi numen) {
-        numen.api("scan", "Look around you: the ground map, where blocks are, who is near, one block and what it "
-                + "holds, whether you can see something.", ScanApi.class);
+        numen.api("scan", "Look around you: the ground map, a layer or a cube of cells, where blocks are, who is "
+                + "near, one block and what it holds, whether you can see something.", ScanApi.class);
     }
 
     // ---- map ----
@@ -97,6 +117,213 @@ public final class ScanApi {
     @SeeAlso({"numen.scan.blocks", "numen.scan.entities", "numen.scan.block"})
     public static GroundMap map(ServerCall call, MapArgs args) {
         return LookAround.render(call.her(), args.radius().orElse(LookAround.DEFAULT_RADIUS));
+    }
+
+    // ---- slice / volume ----
+
+    /** 单层的参数:哪一层,看多宽。 */
+    public record Slice(@Doc("The Y of the layer, a world height.") int y,
+                        @Doc("Half-width of the square layer in blocks (" + MIN_SLICE_RADIUS + "-"
+                                + MAX_SLICE_RADIUS + ").") @Omitted("use " + DEFAULT_SLICE_RADIUS
+                                + ": the width of one default volume") Optional<Integer> radius) {}
+
+    /** 一层格子。 */
+    @Doc("One horizontal layer of cells.")
+    public record Layer(@Doc("The Y of this layer.") int y,
+                        @Doc("The rows, north first, each row west to east; cells are run-length encoded: "
+                                + ". is air, ? is unloaded, # is some other block, a letter stands for a block "
+                                + "named in the legend, a run of repeats is ch*N (the *N is left out for a single "
+                                + "one).") List<String> rows,
+                        @Doc("The letters used on this layer, a=minecraft:stone b=minecraft:water.") String legend) {}
+
+    /** 立方体的参数。 */
+    public record Volume(@Doc("Edge length in blocks (" + MIN_VOLUME_SIZE + "-" + MAX_VOLUME_SIZE + ", odd; an "
+            + "even one grows by one).") @Omitted("use " + DEFAULT_VOLUME_SIZE) Optional<Integer> size,
+                         @Doc("The lowest corner of the cube: it grows +x +y +z from there. Give this or to, "
+                                 + "not both; give neither and the cube is centred on the cell you stand in.")
+                         Optional<BlockPos> from,
+                         @Doc("The highest corner of the cube: it grows -x -y -z from there.")
+                         Optional<BlockPos> to) {}
+
+    /** 一个立方体:层从上往下。 */
+    @Doc("A cube of cells, layers top first.")
+    public record Cube(@Doc("Edge length in blocks.") int size,
+                       @Doc("The layers, top first: layer n/2 is the cell the cube is centred on (the one you "
+                               + "stand in when no from/to was given), layer n/2+1 the floor under it.")
+                       List<Layer> layers,
+                       @Doc("Every letter used anywhere in the cube, a=minecraft:stone b=minecraft:water.")
+                       String legend) {}
+
+    /** 一层:某一高度上、以她所站的列为中心的一圈格子,行北在前。 */
+    @Fn("One horizontal layer of cells at a height: the ground at that level, or what hangs over you.")
+    @Example("local layer = numen.scan.slice({y = 63})\nfor _, row in ipairs(layer.rows) do print(row) end")
+    @Example("numen.scan.slice({y = 70, radius = 8})")
+    @Note("Instant and read-only. Cells are run-length encoded: . is air, ? is unloaded (unknown, not walkable), "
+            + "# is some other block, a letter stands for a block named in the legend, repeats as ch*N. Liquids "
+            + "keep their own id (minecraft:water): they are not #.")
+    @Note("Rows go north first, each row west to east; the layer is centred on the column you stand in. To see "
+            + "many layers at once, use numen.scan.volume.")
+    @SeeAlso({"numen.scan.volume", "numen.scan.map", "numen.scan.block"})
+    public static Layer slice(ServerCall call, Slice args) {
+        NumenPlayer self = call.her();
+        int half = Mth.clamp(args.radius().orElse(DEFAULT_SLICE_RADIUS), MIN_SLICE_RADIUS, MAX_SLICE_RADIUS);
+        BlockPos feet = Feet.cell(self);
+        Terrain view = Terrain.of(self);
+        LinkedHashMap<String, Character> byId = new LinkedHashMap<>();
+        LinkedHashMap<Character, String> letters = new LinkedHashMap<>();
+        Set<Character> used = new LinkedHashSet<>();
+        List<String> rows = new ArrayList<>();
+        for (int dz = -half; dz <= half; dz++) {
+            StringBuilder cells = new StringBuilder();
+            for (int dx = -half; dx <= half; dx++) {
+                cells.append(cellGlyph(view, args.y(), feet.getX() + dx, feet.getZ() + dz, byId, letters, used));
+            }
+            rows.add(rleEncode(cells.toString()));
+        }
+        return new Layer(args.y(), rows, legend(letters, used));
+    }
+
+    /** 一个立方体:以她为中心,或钉在给定的角上;层从上往下,索引 n/2 是中心层,她脚下的地板是 n/2+1。 */
+    @Fn("A cube of cells around you: every layer top to bottom, with the layer you stand in at index n/2 and "
+            + "the floor under it at n/2+1.")
+    @Example("local cube = numen.scan.volume({size = 9})\nlocal feet = cube.layers[5]\nprint(feet.rows[5])")
+    @Example("numen.scan.volume({size = 5, from = {x = 120, y = 58, z = -35}})")
+    @Example("numen.scan.volume({size = 9, to = {x = 124, y = 66, z = -31}})")
+    @Note("Instant and read-only. Layers are top first: layer n/2 is the cell the cube is centred on (the one "
+            + "you stand in when you give neither from nor to), layer n/2+1 the floor under it — keep that order "
+            + "when you index into layers.")
+    @Note("The cell encoding is the one numen.scan.slice explains; every layer's legend is a subset of the "
+            + "cube's, and a letter means the same block in every layer.")
+    @Note("Only loaded chunks are read: an unloaded cell is ?, never air.")
+    @SeeAlso({"numen.scan.slice", "numen.scan.map", "numen.scan.blocks"})
+    public static Cube volume(ServerCall call, Volume args) {
+        if (args.from().isPresent() && args.to().isPresent()) {
+            throw new ApiError(ErrorKind.BAD_ARGUMENT, "from and to are alternatives: give one of them, not both",
+                    null);
+        }
+        NumenPlayer self = call.her();
+        int size = sizeOf(args.size());
+        int half = size / 2;
+        BlockPos feet = Feet.cell(self);
+        BlockPos center = args.from()
+                .map(p -> new BlockPos(p.getX() + half, p.getY() + half, p.getZ() + half))
+                .or(() -> args.to().map(p -> new BlockPos(p.getX() - half, p.getY() - half, p.getZ() - half)))
+                .orElse(feet);
+        Terrain view = Terrain.of(self);
+        LinkedHashMap<String, Character> byId = new LinkedHashMap<>();
+        LinkedHashMap<Character, String> letters = new LinkedHashMap<>();
+        List<Layer> layers = new ArrayList<>();
+        for (int i = 0; i < size; i++) {
+            int y = layerY(center.getY(), half, i);
+            Set<Character> used = new LinkedHashSet<>();
+            List<String> rows = new ArrayList<>();
+            for (int dz = -half; dz <= half; dz++) {
+                StringBuilder cells = new StringBuilder();
+                for (int dx = -half; dx <= half; dx++) {
+                    cells.append(cellGlyph(view, y, center.getX() + dx, center.getZ() + dz, byId, letters, used));
+                }
+                rows.add(rleEncode(cells.toString()));
+            }
+            layers.add(new Layer(y, rows, legend(letters, used)));
+        }
+        return new Cube(size, layers, legend(letters, letters.keySet()));
+    }
+
+    /** 一格的字符:没加载 ?,空气 .,方块按它的 id 领字母(液体领自己的 id,不归 #),字母用完归 #。 */
+    private static char cellGlyph(Terrain view, int y, int x, int z, Map<String, Character> byId,
+            Map<Character, String> letters, Set<Character> used) {
+        if (!view.loaded(x, z)) {
+            return UNLOADED_CELL;
+        }
+        BlockState state = view.state(new BlockPos(x, y, z));
+        if (state.isAir()) {
+            return AIR_CELL;
+        }
+        // 流动的水/岩浆与源头是同一个方块(minecraft:water / minecraft:lava),按它自己的 id 领字母,不归 #
+        String id = BuiltInRegistries.BLOCK.getKey(state.getBlock()).toString();
+        Character letter = byId.get(id);
+        if (letter == null) {
+            letter = letterOf(letters.size());
+            if (letter == OTHER_CELL) {
+                return OTHER_CELL;
+            }
+            byId.put(id, letter);
+            letters.put(letter, id);
+        }
+        used.add(letter);
+        return letter;
+    }
+
+    /** 边长:不写默认 {@value DEFAULT_VOLUME_SIZE},夹在 {@value MIN_VOLUME_SIZE}..{@value MAX_VOLUME_SIZE},
+     * 偶数往外扩一格——恒为奇数,立方体才有正中的那一层。 */
+    static int sizeOf(Optional<Integer> asked) {
+        int size = Mth.clamp(asked.orElse(DEFAULT_VOLUME_SIZE), MIN_VOLUME_SIZE, MAX_VOLUME_SIZE);
+        return size % 2 == 0 ? size + 1 : size;
+    }
+
+    /** 第 {@code index} 层(0 最上)的世界 Y:索引越大越靠下;{@code index == half} 是中心层(她脚那层),
+     * {@code half + 1} 是她脚下的地板。 */
+    static int layerY(int centerY, int half, int index) {
+        return centerY + half - index;
+    }
+
+    /** 第几个出现的方块领的字母:a..z;26 种以外归 {@code #}。 */
+    static char letterOf(int index) {
+        return index < 26 ? (char) ('a' + index) : OTHER_CELL;
+    }
+
+    /** 一行的 RLE:连续重复写成 {@code ch*N},N=1 时省略。 */
+    static String rleEncode(String cells) {
+        StringBuilder out = new StringBuilder();
+        int i = 0;
+        while (i < cells.length()) {
+            char ch = cells.charAt(i);
+            int run = 1;
+            while (i + run < cells.length() && cells.charAt(i + run) == ch) {
+                run++;
+            }
+            out.append(ch);
+            if (run > 1) {
+                out.append('*').append(run);
+            }
+            i += run;
+        }
+        return out.toString();
+    }
+
+    /** RLE 还原成一行的格子。 */
+    static String rleDecode(String rle) {
+        StringBuilder out = new StringBuilder();
+        int i = 0;
+        while (i < rle.length()) {
+            char ch = rle.charAt(i++);
+            int run = 1;
+            if (i < rle.length() && rle.charAt(i) == '*') {
+                i++;
+                int start = i;
+                while (i < rle.length() && rle.charAt(i) >= '0' && rle.charAt(i) <= '9') {
+                    i++;
+                }
+                run = Integer.parseInt(rle.substring(start, i));
+            }
+            out.append(String.valueOf(ch).repeat(run));
+        }
+        return out.toString();
+    }
+
+    /** legend:字母=方块 id,空格分隔,只列 {@code used} 里的字母,按字母出现的先后。 */
+    static String legend(Map<Character, String> letters, Set<Character> used) {
+        StringBuilder out = new StringBuilder();
+        for (Map.Entry<Character, String> entry : letters.entrySet()) {
+            if (!used.contains(entry.getKey())) {
+                continue;
+            }
+            if (out.length() > 0) {
+                out.append(' ');
+            }
+            out.append(entry.getKey()).append('=').append(entry.getValue());
+        }
+        return out.toString();
     }
 
     // ---- blocks ----
