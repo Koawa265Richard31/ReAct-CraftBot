@@ -11,7 +11,7 @@ import com.google.gson.JsonObject;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.world.entity.monster.Enemy;
+import net.minecraft.world.entity.monster.Monster;
 import net.minecraft.world.item.ItemStack;
 
 import java.util.List;
@@ -202,9 +202,9 @@ public final class LiveState {
         if (body == null || mc.level == null) {
             return foes;
         }
-        List<Enemy> found = mc.level.getEntitiesOfClass(Enemy.class,
+        List<Monster> found = mc.level.getEntitiesOfClass(Monster.class,
                 body.getBoundingBox().inflate(FOE_RADIUS), e -> true);
-        for (Enemy foe : found) {
+        for (Monster foe : found) {
             if (foes.size() >= MAX_FOES) {
                 break;
             }
