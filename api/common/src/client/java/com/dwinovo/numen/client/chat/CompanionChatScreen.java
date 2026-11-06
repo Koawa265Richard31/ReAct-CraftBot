@@ -73,6 +73,39 @@ public class CompanionChatScreen extends Screen {
     }
 
     /**
+     * 说给她的<b>唯一出口</b>:交给 {@code Conversations#say}(Y 键、面板、语音、外脑共用的那一个),
+     * 送达了就回显一行暗灰字幕,没送达就在准星提示层闪一句。不关屏——关屏归入口自己。
+     * Y 屏回车与原版聊天栏的 {@code /yuuka}(见 {@code ChatScreenSendMixin})都落在这里,
+     * “说话”只有一个出处,不各写一份。
+     */
+    private static void speakTo(Conversation conv, String companionName, String text) {
+        if (Conversations.instance().say(conv, text).reached()) {
+            ChatLines.owner(companionName, text, false);
+        } else {
+            com.dwinovo.numen.client.hud.TalkHint.flash(I18n.get(Keys.CHAT_NOT_RECEIVED, companionName), 3000);
+        }
+    }
+
+    /**
+     * 原版聊天栏 {@code /yuuka <话>} 的静态入口(客户端混入 {@code ChatScreen} 截下输入后交到这里)。
+     * 收件人与 Y 键同一套解析:征询挂着先答征询,否则当前交互对象(准星 &gt; 转盘选中,
+     * 见 {@link SelectedCompanion#resolveTarget});没选人闪一句提示,什么都不发。
+     * 与 Y 屏回车走同一条 {@link #speakTo}。
+     */
+    public static void submit(String text) {
+        ConsentCards.Card asking = ConsentCards.first();
+        Conversation target = asking != null
+                ? Conversations.instance().of(asking.companion())
+                : SelectedCompanion.resolveTarget();
+        if (target == null) {
+            com.dwinovo.numen.client.hud.TalkHint.flash(I18n.get(Keys.KEYS_PICK_FIRST,
+                    com.dwinovo.numen.client.NumenKeys.COMPANION_WHEEL.getTranslatedKeyMessage().getString()), 3000);
+            return;
+        }
+        speakTo(target, target.displayName(NumenRoster.instance()::name), text);
+    }
+
+    /**
      * 准星此刻指着的「自己的」同伴,不在指着返回 null。花名册只含本人的
      * 同伴,身份校验是白送的;别人的同伴不响应(它的大脑不在你机器上)。
      */
@@ -117,11 +150,7 @@ public class CompanionChatScreen extends Screen {
     /** 输入行的宿主:说话走 Gateway 然后关屏;命令的回话闪在准星提示层,屏也关。 */
     private final class BarHost implements ChatInputBar.Host {
         @Override public void onSend(String text) {
-            if (Conversations.instance().say(conv, text).reached()) {
-                ChatLines.owner(companionName, text, false);
-            } else {
-                com.dwinovo.numen.client.hud.TalkHint.flash(I18n.get(Keys.CHAT_NOT_RECEIVED, companionName), 3000);
-            }
+            speakTo(conv, companionName, text);
             onClose();
         }
 

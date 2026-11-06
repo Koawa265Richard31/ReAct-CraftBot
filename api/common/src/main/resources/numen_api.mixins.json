@@ -16,6 +16,7 @@
   ],
   "client": [
     "ChatComponentAccessor",
+    "ChatScreenSendMixin",
     "GuiIconsAccessor",
     "ToastComponentAccessor",
     "MixinKeyboardInput",
