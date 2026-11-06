@@ -12,7 +12,7 @@ import java.nio.file.Path;
  * 主人的客户端偏好——{@code config/numen/ui.json}。
  *
  * <pre>
- * { "theme": "light", "talkHint": true, "messageNotices": true, "initiative": 3 }
+ * { "theme": "light", "talkHint": true, "messageNotices": true, "statusHud": true, "initiative": 3 }
  * </pre>
  *
  * <p>跟 {@code UiTheme} 分开:那个类只管颜色,这里只管主人选了什么。混在一起的话,
@@ -28,6 +28,10 @@ public final class ClientPrefs {
     private static String theme = "light";
     private static boolean talkHint = true;
     private static boolean messageNotices = true;
+    private static boolean statusHud = true;
+    /** 预留:面板关掉时屏幕底部那条状态小条。渲染侧尚未实现(全树无人读它),
+     *  面板左下角的开关现接的是 {@link #statusHud};别再把新开关往这绑。 */
+    private static boolean miniHud = true;
     private static int initiative = EventQueue.DEFAULT_LEVEL;
     /** 最近用过的斜杠命令名,最新在前。排序归命令层,这里只负责存。 */
     private static final java.util.List<String> recentCommands = new java.util.ArrayList<>();
@@ -45,6 +49,8 @@ public final class ClientPrefs {
             if (o.has("theme")) theme = o.get("theme").getAsString();
             if (o.has("talkHint")) talkHint = o.get("talkHint").getAsBoolean();
             if (o.has("messageNotices")) messageNotices = o.get("messageNotices").getAsBoolean();
+            if (o.has("statusHud")) statusHud = o.get("statusHud").getAsBoolean();
+            if (o.has("miniHud")) miniHud = o.get("miniHud").getAsBoolean();
             if (o.has("initiative")) initiative = EventQueue.clampLevel(o.get("initiative").getAsInt());
             if (o.has("recentCommands") && o.get("recentCommands").isJsonArray()) {
                 for (var el : o.getAsJsonArray("recentCommands")) recentCommands.add(el.getAsString());
@@ -83,6 +89,26 @@ public final class ClientPrefs {
         persist();
     }
 
+    /** Yuuka 状态面板:右上角三四行小字(开关在 Numen 面板左下角的常驻小条 Toggle)。 */
+    public static boolean statusHud() {
+        return statusHud;
+    }
+
+    public static void setStatusHud(boolean enabled) {
+        statusHud = enabled;
+        persist();
+    }
+
+    /** 预留,暂无读取方:渲染侧尚未实现底部小条;面板左下角开关现接的是 statusHud。 */
+    public static boolean miniHud() {
+        return miniHud;
+    }
+
+    public static void setMiniHud(boolean enabled) {
+        miniHud = enabled;
+        persist();
+    }
+
     /**
      * 主动性档位 1~10:她多久把攒下的世界变化说一次。
      * 小 = 知道得及时、token 烧得快;大 = 知道得晚、省。见 {@link EventQueue}。
@@ -117,6 +143,8 @@ public final class ClientPrefs {
             o.addProperty("theme", theme);
             o.addProperty("talkHint", talkHint);
             o.addProperty("messageNotices", messageNotices);
+            o.addProperty("statusHud", statusHud);
+            o.addProperty("miniHud", miniHud);
             o.addProperty("initiative", initiative);
             com.google.gson.JsonArray recent = new com.google.gson.JsonArray();
             for (String name : recentCommands) recent.add(name);

@@ -1003,6 +1003,41 @@ class AgentLoopTest extends LoopHarness {
         }
     }
 
+    // ---- 外接大脑借用的工具口 ----
+
+    @Nested
+    class AsidePrograms {
+
+        @Test
+        void haltAnswersTheAsideAndReleasesTheSlot() {
+            List<String> replies = new ArrayList<>();
+            assertTrue(loop.runAside(new LlmToolCall("ext-9", "lua", "{}"), replies::add),
+                    "空闲时收下一段外接程序");
+            assertFalse(loop.runAside(new LlmToolCall("ext-10", "lua", "{}"), replies::add),
+                    "同一时刻只借一次");
+
+            loop.halt(HaltReason.EXTERNAL);
+
+            assertEquals(1, replies.size(), "halt 必须以一条回话结束它,不能永久悬着");
+            assertTrue(replies.get(0).contains("cut off"), replies.get(0));
+
+            // 迟到的结算不能再回一次,也不能把槽再占上
+            tools.finish("ext-9");
+            assertEquals(1, replies.size(), "迟到的结果不该再回一次");
+            assertTrue(loop.runAside(new LlmToolCall("ext-11", "lua", "{}"), replies::add),
+                    "halt 之后槽位必须松开");
+        }
+
+        @Test
+        void haltUnblocksTheInnerBrain() {
+            loop.runAside(new LlmToolCall("ext-9", "lua", "{}"), result -> { });
+            loop.halt(HaltReason.DISCONNECT);
+
+            ownerSays("回来");
+            assertEquals(1, model.calls.size(), "aside 松开后内脑能重新开轮,而不是被一段已切断的程序永久挡住");
+        }
+    }
+
     @Test
     void statusReadsFromOnePlace() {
         LoopStatus idle = loop.status();

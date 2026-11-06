@@ -219,16 +219,20 @@ public final class Dispatcher {
         return stderr.isEmpty() ? reply : ApiReply.withStderr(reply, stderr);
     }
 
-    /** 成功,值按函数的返回类型写成脚本的值。 */
+    /**
+     * 成功,值按函数的返回类型写成脚本的值。写不成(函数把返回类型写窄了、交回的类没有值转换)是这次调用的一条失败回执:
+     * 这条路径跑在服务端每刻的收尾里({@code CompanionBrain.shipResults}),编码的异常绝不能从这里往上抛——一抛就是整个
+     * 服务端 tick 循环崩掉,所有玩家掉线。
+     */
     private static JsonObject value(ApiFunction fn, Object value) {
-        Object lua;
         try {
-            lua = fn.returns().encode(value);
-        } catch (ClassCastException wrongType) {
-            throw new IllegalStateException(fn.fullName() + " returned a " + value.getClass().getName()
-                    + ", not what its signature says", wrongType);
+            return ApiReply.value(JsonValues.toJson(fn.returns().encode(value)));
+        } catch (RuntimeException broke) {
+            Constants.LOG.error("[numen-api] {} returned a value its signature cannot write", fn.fullName(), broke);
+            String got = value == null ? "null" : value.getClass().getName();
+            return ApiReply.error(ErrorKind.FAILED, fn.fullName() + " returned a " + got
+                    + ", not what its signature says: " + broke.getMessage(), null, null);
         }
-        return ApiReply.value(JsonValues.toJson(lua));
     }
 
     /** 函数说的失败。 */

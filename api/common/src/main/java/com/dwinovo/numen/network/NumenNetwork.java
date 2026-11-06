@@ -214,11 +214,26 @@ public final class NumenNetwork {
                 com.dwinovo.numen.network.payload.CancelTasksPayload::read,
                 com.dwinovo.numen.network.payload.CancelTasksPayload::handle);
 
+        // C→S: the external brain's stop tool — stop whatever program this companion runs right now,
+        // whatever started it (owner authority, no program id needed). The body stop itself is
+        // cancel_tasks' job; the two gates travel together.
+        toServer(
+                com.dwinovo.numen.network.payload.StopCurrentProgramPayload.ID,
+                com.dwinovo.numen.network.payload.StopCurrentProgramPayload::read,
+                com.dwinovo.numen.network.payload.StopCurrentProgramPayload::handle);
+
         // C→S: 大脑开始/结束输出——身体据此在说话期间注视主人(纯姿态信号)。
         toServer(
                 com.dwinovo.numen.network.payload.SpeakingStatePayload.ID,
                 com.dwinovo.numen.network.payload.SpeakingStatePayload::read,
                 com.dwinovo.numen.network.payload.SpeakingStatePayload::handle);
+
+        // C→S: 驾驶席口径的现值(McpMode.driving() 的服务端镜像,服务端类看不见客户端的
+        // McpMode)——重放/反射层/drive 这些服务端闸门读它;翻到外接的边沿上顺带叫停内脑派下的活。
+        toServer(
+                com.dwinovo.numen.network.payload.DrivingMirrorPayload.ID,
+                com.dwinovo.numen.network.payload.DrivingMirrorPayload::read,
+                com.dwinovo.numen.network.payload.DrivingMirrorPayload::handle);
 
         // S→C: an Numen body died; suspend the owner's agent loop (records the cut-off turn
         // with the death cause). Recoverable — see NumenRespawnPayload.
@@ -301,5 +316,16 @@ public final class NumenNetwork {
                 com.dwinovo.numen.network.payload.ChangeSkinPayload.ID,
                 com.dwinovo.numen.network.payload.ChangeSkinPayload::read,
                 com.dwinovo.numen.network.payload.ChangeSkinPayload::handle);
+
+        // C→S: the gear panel asks to wear / take off one slot (optimistic, txId-guarded);
+        // S→C: the one receipt for it — ok / reason / the two ends after the move.
+        toServer(
+                com.dwinovo.numen.network.payload.GearSwapRequest.ID,
+                com.dwinovo.numen.network.payload.GearSwapRequest::read,
+                com.dwinovo.numen.network.payload.GearSwapRequest::handle);
+        toClient(
+                com.dwinovo.numen.network.payload.GearSwapResult.ID,
+                com.dwinovo.numen.network.payload.GearSwapResult::read,
+                com.dwinovo.numen.network.payload.GearSwapResult::handle);
     }
 }

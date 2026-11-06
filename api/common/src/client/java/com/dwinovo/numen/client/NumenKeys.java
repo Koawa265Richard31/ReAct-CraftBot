@@ -10,6 +10,7 @@ import com.dwinovo.numen.client.chat.CompanionWheelScreen;
 import com.dwinovo.numen.client.chat.QuickVoice;
 import com.dwinovo.numen.client.chat.SelectedCompanion;
 import com.dwinovo.numen.client.screen.NumenScreen;
+import com.dwinovo.numen.client.screen.panel.NumenPanelScreen;
 import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
@@ -51,6 +52,12 @@ public final class NumenKeys {
     public static final KeyMapping QUICK_VOICE = new KeyMapping(
             com.dwinovo.numen.data.ModLanguageData.Keys.KEY_QUICK_VOICE,
             InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_V,
+            CATEGORY);
+
+    /** F9 — Numen 面板开关:无屏时开面板,面板内再按是关(关在面板自己的 keyPressed)。原版 F9 无绑定,模组内也没人占。 */
+    public static final KeyMapping STATUS_HUD = new KeyMapping(
+            com.dwinovo.numen.data.ModLanguageData.Keys.KEY_STATUS_HUD,
+            InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_F9,
             CATEGORY);
 
     private static boolean voiceWasDown;
@@ -101,5 +108,11 @@ public final class NumenKeys {
             QuickVoice.release();
         }
         voiceWasDown = voiceDown;
+        // F9 开 Numen 面板:旧的全局小条开关不再占键,开关在面板左下角
+        // (常驻小条 Toggle,偏好落 ClientPrefs.statusHud)。面板开着时按键
+        // 归屏内的 keyPressed,不进这里,所以不会「开了又立刻被关」。
+        while (STATUS_HUD.consumeClick()) {
+            NumenPanelScreen.open();
+        }
     }
 }

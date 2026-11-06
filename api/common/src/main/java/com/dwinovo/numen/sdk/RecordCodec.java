@@ -1,5 +1,6 @@
 package com.dwinovo.numen.sdk;
 
+import com.dwinovo.numen.Constants;
 import com.dwinovo.numen.agent.script.JsonValues;
 import com.dwinovo.numen.agent.script.ScriptType;
 
@@ -27,6 +28,7 @@ final class RecordCodec<R extends Record> implements Codec<R> {
                          boolean folded, boolean flatten, String doc) {}
 
     private final Class<R> type;
+    private final String namespace;
     private final ScriptType.Class declared;
     private final List<Field> fields = new ArrayList<>();
     private final Constructor<R> constructor;
@@ -35,6 +37,7 @@ final class RecordCodec<R extends Record> implements Codec<R> {
     RecordCodec(Class<R> type, String name) {
         this.type = type;
         String namespace = name.contains(".") ? name.substring(0, name.lastIndexOf('.')) : "numen";
+        this.namespace = namespace;
         RecordComponent[] components = type.getRecordComponents();
         List<ScriptType.Field> declaredFields = new ArrayList<>();
         String parent = null;
@@ -145,6 +148,11 @@ final class RecordCodec<R extends Record> implements Codec<R> {
 
     @Override
     public Object encode(R value) {
+        if (!type.isInstance(value)) {
+            // 函数把返回类型写窄了(声明是 record A,交回的是 record B),或泛型擦除把别的实现漏了过来:
+            // 按值自己的类写,不能拿 A 的存取器去读 B(那是 "object is not an instance of declaring class")。
+            return encodeOther(value);
+        }
         Map<String, Object> shown = new LinkedHashMap<>();
         Map<String, Object> folded = new LinkedHashMap<>();
         for (Field f : fields) {
@@ -171,6 +179,32 @@ final class RecordCodec<R extends Record> implements Codec<R> {
             (f.folded ? folded : shown).put(f.name, f.codec.encode(v));
         }
         return folded.isEmpty() ? shown : new JsonValues.Folded(shown, folded);
+    }
+
+    /**
+     * 交回的不是这个 record:按值运行期的类另找值转换写。找不到(或找到的还是这一个)是一条说得清的错,不是反射的原话;
+     * {@link Dispatcher} 把它降级成这次调用的一条失败回执,不往上抛。
+     */
+    @SuppressWarnings("unchecked")
+    private Object encodeOther(Object value) {
+        if (value == null) {
+            throw new IllegalStateException(declared.name() + " is null: an API function declared " + type.getName()
+                    + " as its return type but returned nothing");
+        }
+        Codec<Object> actual;
+        try {
+            actual = (Codec<Object>) LuaCodecs.of(value.getClass(), namespace);
+        } catch (IllegalArgumentException none) {
+            throw new IllegalStateException(value.getClass().getName() + " was returned where the signature says "
+                    + type.getName() + ", and it has no codec: " + none.getMessage(), none);
+        }
+        if ((Object) actual == this) {
+            throw new IllegalStateException(value.getClass().getName() + " was returned where the signature says "
+                    + type.getName() + ", but they resolve to the same codec");
+        }
+        Constants.LOG.warn("[numen-api] a {} was encoded with its own codec; the signature declares {}",
+                value.getClass().getName(), type.getName());
+        return actual.encode(value);
     }
 
     private static Object read(RecordComponent component, Record value) {

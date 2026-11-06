@@ -54,6 +54,10 @@ public class NumenFabricClient implements ClientModInitializer {
         // Off unless enabled in config/numen/mcp_server.json.
         com.dwinovo.numen.mcp.server.NumenMcp.initClient(FabricLoader.getInstance().getConfigDir());
 
+        // /live 只读小门(127.0.0.1:8766):读 NumenMcp 刚装好的配置,开着就起服。
+        // 采样线挂在下面的 END_CLIENT_TICK(LiveState.clientTick)。
+        com.dwinovo.numen.client.live.LiveServer.startFromConfig();
+
         // Skills live under config/numen/skills. Hook the resource reload
         // pipeline so /reload picks up newly added SKILL.md files without a
         // client restart.
@@ -79,6 +83,8 @@ public class NumenFabricClient implements ClientModInitializer {
         KeyBindingHelper.registerKeyBinding(com.dwinovo.numen.client.NumenKeys.COMPANION_WHEEL);
         KeyBindingHelper.registerKeyBinding(com.dwinovo.numen.client.NumenKeys.TALK_COMPANION);
         KeyBindingHelper.registerKeyBinding(com.dwinovo.numen.client.NumenKeys.QUICK_VOICE);
+        // F9 → Numen 面板开关(无屏时开面板,面板内按 F9 关)。
+        KeyBindingHelper.registerKeyBinding(com.dwinovo.numen.client.NumenKeys.STATUS_HUD);
 
         // HUD: 快捷对话提醒——准星指着同伴时浮「按 [键] 对话」;
         // toast 横幅同层(错误分类话术等,玩家不开面板也看得见)。
@@ -87,6 +93,8 @@ public class NumenFabricClient implements ClientModInitializer {
                     com.dwinovo.numen.client.hud.TalkHint.render(g);
                     com.dwinovo.numen.client.hud.NumenHudToasts.render(g);
                     com.dwinovo.numen.client.notify.MessageNotices.renderHud(g);
+                    // Yuuka 状态面板:右上角三四行小字,4Hz 采样缓存的只读快照。
+                    com.dwinovo.numen.client.hud.YuukaStatusHud.render(g);
                 });
         // 消息通知开着界面时画在界面上面、接点击(界面的事件每次 init 重置,所以在 init 之后挂)
         net.fabricmc.fabric.api.client.screen.v1.ScreenEvents.AFTER_INIT.register((client, screen, w, h) -> {
@@ -102,6 +110,8 @@ public class NumenFabricClient implements ClientModInitializer {
                     com.dwinovo.numen.client.NumenKeys.tick();
                     com.dwinovo.numen.client.agent.AgentLoopRegistry.tickAll();
                     com.dwinovo.numen.mcp.server.McpMode.instance().clientTick();
+                    com.dwinovo.numen.client.live.LiveState.clientTick();
+                    com.dwinovo.numen.client.hud.YuukaStatusHud.tick();
                 });
 
         net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents.DISCONNECT

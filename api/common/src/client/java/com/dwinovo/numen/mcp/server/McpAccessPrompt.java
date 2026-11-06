@@ -80,8 +80,12 @@ final class McpAccessPrompt {
                 - Reply and narrate with `say(companion, text)` — the words appear in-game as the \
                 companion's chat line, speech bubble, and voice. Keep your own conversation history; \
                 the game stores none for you.
-                - Besides list_companions, create_companion, delete_companion, get_events and say there \
-                is one more tool, `%s`: a program whose functions are the companion's API. `numen.status.self()`, `numen.scan.blocks("iron_ore")`, \
+                - `screenshot({width?, height?})` saves what the client's screen shows right now as a PNG \
+                under `config/numen/shots/` and answers with its path, width, height and byte count — the \
+                file, not the image, so your context stays small. Use it when you need to see rather than \
+                guess.
+                - Besides list_companions, create_companion, delete_companion, get_events, say and \
+                screenshot there is one more tool, `%s`: a program whose functions are the companion's API. `numen.status.self()`, `numen.scan.blocks("iron_ore")`, \
                 `numen.move.to({x = 120, y = 12, z = -35}, {arrive = "dig"})`, `numen.work.dig({x = 120, y = 12, z = -35})`, \
                 `numen.fight.attack(184)`, `numen.inv.craft(...)`, … `numen.api.help("numen.work")` lists a group's functions and \
                 `numen.api.help("numen.work.dig")` gives one function's full help. One call is a one-line program; \

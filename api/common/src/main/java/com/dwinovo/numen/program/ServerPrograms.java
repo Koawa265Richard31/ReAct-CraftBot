@@ -261,6 +261,27 @@ public final class ServerPrograms {
         }
     }
 
+    /**
+     * 叫停这具身体上<b>此刻在跑的那段</b>程序,不认编号。外脑的 stop 工具握着主人的令牌、与主人同一权限
+     * ({@code HaltReason} 表里只有 OWNER_STOP 一路叫停身体,这里走的就是它的语义),它却未必握着服务端自己
+     * 起的那段的编号({@code /numen drive}、重启重放都不经它的手)——所以不像 {@link #cutOff} 那样按编号匹配。
+     * 一只同伴至多一段在跑({@link #admit}),「当下这段」没有歧义;范围只在<b>这一具</b>身体上,
+     * 不是无差别的「全服停一切」。
+     *
+     * <p>切断语义与 {@link #cutOff} 相同:当场停;{@code stopBody} 写进回执,前提是调用方同一口气把身体叫停
+     * ({@code CancelTasksPayload})也发了——两道闸一起到,谁也不许只发一半。
+     *
+     * @return 被停的那段的编号;本来就没有程序在跑是 null(幂等,不是错误)
+     */
+    public static String stopCurrent(UUID companion, boolean stopBody) {
+        Running running = RUNNING.get(companion);
+        if (running == null) {
+            return null;
+        }
+        running.program.cancel(stopBody);
+        return running.programId;
+    }
+
     /** 这具身体离开世界:在跑的程序收掉(它等的活已由任务槽收尾)。 */
     public static void stop(NumenPlayer her) {
         Running running = RUNNING.get(her.getUUID());
@@ -275,6 +296,8 @@ public final class ServerPrograms {
         NetworkTransport.INSTANCE.ownerLeft(owner);
         CACHE.drop(owner);
         NumenNetwork.disconnected(owner);
+        // 驾驶席声明跟着连接走:人不在了,镜像就不该再说"有外脑在开"(见 DrivingMirror)。
+        com.dwinovo.numen.task.DrivingMirror.forget(owner);
     }
 
     /** 服务器停了:所有程序收掉,排着的调用作废。 */

@@ -33,4 +33,5 @@ public final class ClientPayloadSink {
     public static volatile Consumer<NumenRespawnPayload> respawn = p -> {};
     public static volatile Consumer<PathDebugPayload> pathDebug = p -> {};
     public static volatile Consumer<ClientUiActionPayload> uiAction = p -> {};
+    public static volatile Consumer<com.dwinovo.numen.network.payload.GearSwapResult> gearSwap = p -> {};
 }

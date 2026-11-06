@@ -500,11 +500,23 @@ public final class ChatView {
         int cw = w - EDGE - SB_W - 3;
 
         line(g, I18n.get("numen.brain.console_title"), cx, y + 2, TXT);
+        // 状态行与大脑页徽标同一口径:先看有没有续过约,再看租约——从没续约(包括握了手
+        // 还没成功调用过)不是"过期"。过期时如实说身体已进安全待机(文案硬编码,不另立 key),
+        // 不再挂着"外脑在场"的样子。
         String who = mcp.clientName();
-        line(g, who == null
-                        ? I18n.get("numen.brain.status_waiting")
-                        : I18n.get("numen.brain.status_connected", who, sinceLabel(mcp.lastActivityMs())),
-                cx, y + 14, who == null ? FAINT : OK);
+        String statusLine;
+        int statusColor;
+        if (mcp.lastRenewedMs() <= 0) {
+            statusLine = I18n.get("numen.brain.status_waiting");
+            statusColor = FAINT;
+        } else if (!mcp.leaseOk()) {
+            statusLine = "已失联,身体在安全待机";
+            statusColor = FAIL;
+        } else {
+            statusLine = I18n.get("numen.brain.status_connected", who, sinceLabel(mcp.lastActivityMs()));
+            statusColor = OK;
+        }
+        line(g, statusLine, cx, y + 14, statusColor);
         g.fill(cx, y + 26, cx + cw, y + 27, CHIP_FILL);
 
         UUID id = solo();

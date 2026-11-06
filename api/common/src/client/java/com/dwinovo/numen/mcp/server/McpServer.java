@@ -6,6 +6,7 @@ import com.dwinovo.numen.agent.prompt.NumenPrompts;
 import com.dwinovo.numen.agent.tool.NumenTool;
 import com.dwinovo.numen.agent.tool.ToolRegistry;
 import com.dwinovo.numen.api.NumenActuator;
+import com.dwinovo.numen.client.vision.ScreenShots;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
@@ -42,9 +43,15 @@ import java.util.concurrent.TimeoutException;
  * the script tool, the skill tool, the todo tool, plus the tools of remote MCP servers the owner connected — is
  * advertised with an extra {@code companion} argument, and calls route to
  * {@link NumenActuator#invoke}: a program runs through the companion's own
- * dispatcher and the call returns its receipt when it ends. Three management tools — {@code list_companions},
- * {@code create_companion}, {@code delete_companion} — wrap the actuator's roster
- * methods. There is no take-control handshake: 模式开启期间内置大脑一轮都不开
+ * dispatcher and the call returns its receipt when it ends. Management tools — {@code list_companions},
+ * {@code create_companion}, {@code delete_companion}, {@code lease_status} — wrap the actuator's roster
+ * methods and the lease query; {@code stop} stops everything a body is executing (a program that timed out on the
+ * caller's side keeps running on the server — this is the way to end it; the actuator's
+ * {@code stop} knows the ext program's id, a server-started one is caught by a no-id variant).
+ * Every {@code tools/call} feeds the lease (a call in flight counts as present, a successful one renews;
+ * {@code lease_status} is read-only and does not) — after {@code lease_seconds} with none, the body
+ * stands by, see {@link McpMode#leaseOk()}.
+ * There is no take-control handshake: 模式开启期间内置大脑一轮都不开
  * (见 {@link McpMode}), 所以外部驱动者直接派活即可。Since every call is addressed
  * to a companion and each body runs its tasks independently, an agent can drive
  * several companions in parallel.
@@ -97,7 +104,10 @@ public final class McpServer {
             does not know answers with the list of the skills it can use. The %s tool writes down your plan for \
             work of several phases (the whole plan each call, replacing the last one); the owner sees it as a \
             checklist. The %s tool keeps the companion's own notes (remember, recall, forget); their index \
-            comes with every turn of its own brain.
+            comes with every turn of its own brain. The screenshot tool saves what this client's screen shows \
+            right now as a PNG under config/numen/shots/ and answers with the file's path, size and byte \
+            count — the file, never the image itself, so your context stays small; call it when you need to \
+            see rather than guess.
 
             Rules: survival mode — the API does only what a real player can (mine to get stone; there is no \
             give or setblock). You are blind between calls, so perceive before and after acting. %s You can \
@@ -114,7 +124,15 @@ public final class McpServer {
             say(companion, text): the words appear in-game as the companion's chat line, speech bubble, \
             and voice. Keep your own conversation history — the game stores none for you; between \
             get_events calls nothing is lost (events queue up). Raise wait_seconds (up to 50) only when \
-            you deliberately want to park and wait for the owner to speak.""".formatted(
+            you deliberately want to park and wait for the owner to speak. The stop tool cancels \
+            everything a companion is currently executing — the program it runs (including one of yours \
+            that timed out on your side: your call returned, but the program itself keeps running on the \
+            server until you stop it) and the body task it is mid-way through — and answers with what it \
+            stopped and where. The companion only stays in your hands while you keep calling: a tools/call \
+            in flight already counts as you being there, and a successful one renews a lease of \
+            lease_seconds (default 90). If the lease runs out the companion stands by — its running \
+            program and body task are cancelled, it stays where it is and keeps its things — and your \
+            next successful call brings it back. lease_status reports the lease; it does not renew it.""".formatted(
             com.dwinovo.numen.agent.script.ScriptEngine.IN_USE.toolName(), com.dwinovo.numen.agent.tool.SkillTool.NAME,
             com.dwinovo.numen.agent.tool.TodoTool.NAME, com.dwinovo.numen.agent.tool.MemoryTool.NAME, ONE_BODY);
 
@@ -287,6 +305,22 @@ public final class McpServer {
                         + "Takes its name or id.",
                 requiredStringSchema("companion",
                         "Which companion to dismiss — its name or id (see list_companions).")));
+        tools.add(toolDef("stop",
+                "Stop everything this companion is currently executing: the program it is running (yours or one "
+                        + "started another way, e.g. by the owner in-game) and the body task it is mid-way through. "
+                        + "Use it when one of your tools/call timed out on your side but the program keeps running "
+                        + "there. No approval needed — your token is the owner's. Idempotent: when nothing is "
+                        + "running it succeeds and says so (wasRunning=false). The stopped program's receipt tells "
+                        + "where it stopped; a cancelled task winds down on the server's next tick and reports as a "
+                        + "task_finished(status=stopped) event. Her own pending timers are not cancelled (a timer "
+                        + "only emits an event). Right after a stop, starting a new program may be refused for a "
+                        + "moment while the old one finishes its receipt — retry, do not treat it as a failure.",
+                objectSchema("companion", true)));
+        tools.add(toolDef("lease_status",
+                "Read-only diagnostics for the external brain's lease: whether it is active, how many seconds "
+                        + "are left, when it was last renewed, how many calls are in flight, and whether the "
+                        + "companion is standing by. Does not renew the lease.",
+                objectSchema(null, false)));
         tools.add(toolDef("get_events",
                 "Long-poll the companion's inbox: returns the moment something urgent arrives (the owner "
                         + "speaking to it shows up as a <query>; world happenings as <event>s), or whatever "
@@ -298,6 +332,13 @@ public final class McpServer {
                         + "(if one is bound). Use it to answer the owner's <query> events and to narrate what "
                         + "you are doing. Consecutive calls queue up and play in order.",
                 saySchema()));
+        tools.add(toolDef("screenshot",
+                "Capture what the client's screen shows right now as a PNG and answer with where it was saved "
+                        + "(path, width, height, bytes — never the image itself). Scaled down to a thumbnail by "
+                        + "default; files live under config/numen/shots/, the newest "
+                        + ScreenShots.DEFAULT_KEEP_SHOTS + " are kept by default. Use it when "
+                        + "you need to see the companion's surroundings instead of guessing from events.",
+                screenshotSchema()));
 
         // 全量给外脑,不做渐进披露:那是我们自己请求里的省法,外脑的上下文预算归它自己管,
         // 而且 MCP 客户端(Claude Code 之类)本来就会把借来的工具再延迟一次。
@@ -397,6 +438,26 @@ public final class McpServer {
         return schema;
     }
 
+    /** screenshot:两个可选尺寸,都受上限约束,不传就是 320×180 的缩略图;keepShots 是清理上限,由调用方(vision 配置的持有方)透传。 */
+    private JsonObject screenshotSchema() {
+        JsonObject schema = objectSchema(null, false);
+        JsonObject props = schema.getAsJsonObject("properties");
+        props.add("width", pixelProp("Width in pixels (default " + ScreenShots.DEFAULT_WIDTH
+                + ", capped at " + ScreenShots.MAX_WIDTH + ")."));
+        props.add("height", pixelProp("Height in pixels (default " + ScreenShots.DEFAULT_HEIGHT
+                + ", capped at " + ScreenShots.MAX_HEIGHT + ")."));
+        props.add("keepShots", pixelProp("How many recent shots to keep in the shots folder (default "
+                + ScreenShots.DEFAULT_KEEP_SHOTS + "). Pass your vision config's keepShots here."));
+        return schema;
+    }
+
+    private JsonObject pixelProp(String description) {
+        JsonObject p = new JsonObject();
+        p.addProperty("type", "integer");
+        p.addProperty("description", description);
+        return p;
+    }
+
     // ---- tools/call ----
 
     /** 派发一次工具调用,并把它记进活动流——面板上那条流就是这里喂的。 */
@@ -430,20 +491,41 @@ public final class McpServer {
         McpTranscript.tool(who, head + " → " + textOf(out), isError(out));
     }
 
+    /**
+     * 派发一次 {@code tools/call},顺带记租约:进这个门就算外脑在场(执行期间算在场,
+     * 长程序调用挂几分钟也不会被判失联);<b>成功地出来</b>才把租约时刻推到这一刻。
+     * 失败的调用不续约。{@code lease_status} 是排障用的只读查询,不参与——否则它就成了
+     * 变相的心跳工具。
+     */
     private JsonObject dispatchToolCall(String name, JsonObject args) {
+        McpMode mode = McpMode.instance();
+        boolean renewing = !"lease_status".equals(name);
+        if (renewing) {
+            mode.noteCallStart();
+        }
+        boolean ok = false;
         try {
-            return switch (name) {
+            JsonObject out = switch (name) {
                 case "list_companions" -> content(listCompanions(), false);
                 case "create_companion" -> handleCreate(args);
                 case "delete_companion" -> handleDelete(args);
                 case "get_events" -> handleGetEvents(args);
                 case "say" -> handleSay(args);
+                case "screenshot" -> handleScreenshot(args);
+                case "stop" -> handleStop(args);
+                case "lease_status" -> handleLeaseStatus();
                 default -> handleToolInvoke(name, args);
             };
+            ok = !isError(out);
+            return out;
         } catch (TimeoutException te) {
             return content("timed out waiting for the action to finish", true);
         } catch (Exception ex) {
             return content("call failed: " + ex.getMessage(), true);
+        } finally {
+            if (renewing) {
+                mode.noteCallEnd(ok);
+            }
         }
     }
 
@@ -553,6 +635,118 @@ public final class McpServer {
         }
         boolean ok = NumenActuator.say(target, text).get(CONTROL_TIMEOUT_SECONDS, TimeUnit.SECONDS);
         return content(ok ? "said" : "could not say — is the companion live?", !ok);
+    }
+
+    /**
+     * 抓一张当前画面。抓、缩、写盘都在渲染线程上做完,这里只等结果;返回的是
+     * <b>文件位置与尺寸</b>,不是图本身——几十 KB 的 base64 进了上下文,这一轮就废了。
+     * 没进世界时给可读的错误,不崩。
+     */
+    private JsonObject handleScreenshot(JsonObject args) throws Exception {
+        int width = intArg(args, "width", ScreenShots.DEFAULT_WIDTH);
+        int height = intArg(args, "height", ScreenShots.DEFAULT_HEIGHT);
+        // keepShots 归 vision 配置管(DSH 侧),mod 不猜——调用方给多少用多少,没给按默认。
+        int keepShots = intArg(args, "keepShots", ScreenShots.DEFAULT_KEEP_SHOTS);
+        ScreenShots.Shot shot;
+        try {
+            shot = ScreenShots.grab(width, height, keepShots).get(CONTROL_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+        } catch (java.util.concurrent.ExecutionException e) {
+            Throwable cause = e.getCause() == null ? e : e.getCause();
+            return content("could not capture the screen: " + cause.getMessage(), true);
+        }
+        JsonObject saved = new JsonObject();
+        saved.addProperty("path", shot.path().toAbsolutePath().toString());
+        saved.addProperty("width", shot.width());
+        saved.addProperty("height", shot.height());
+        saved.addProperty("bytes", shot.bytes());
+        return content(gson.toJson(saved), false);
+    }
+
+    /** 不是整数就当没给——截图不值得为参数格式报错。 */
+    private static int intArg(JsonObject args, String key, int fallback) {
+        if (!args.has(key) || args.get(key).isJsonNull()) return fallback;
+        try {
+            return args.get(key).getAsInt();
+        } catch (RuntimeException notANumber) {
+            return fallback;
+        }
+    }
+
+    /**
+     * 停掉这具身体上在跑的一切(工具口径见 tools/list 里 stop 的那段话)。不弹审批:调用方握着
+     * 主人的令牌,等同于主人。外脑自己那段程序的回执落地才返回——「停在哪」在回执里,而且回执
+     * 落地才算让出了服务端的程序槽,stop 后立刻重派不会被拒;等太久就如实说停已经发出、回执没赶上。
+     */
+    private JsonObject handleStop(JsonObject args) throws Exception {
+        UUID target = resolveCompanion(args);
+        if (target == null) {
+            return content("stop needs a 'companion' argument (a name or id from list_companions)", true);
+        }
+        NumenActuator.StopReport report;
+        try {
+            report = NumenActuator.stop(new NumenActuator.StopRequest(target))
+                    .get(CONTROL_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+        } catch (TimeoutException late) {
+            // 两道闸已经发出去了:停是真的在发生,只是回执没赶上这一趟——如实说,不算失败
+            return content("stop was issued (the program cut-off and the body stop are on their way to the "
+                    + "server), but waiting for the stopped program's receipt timed out — the receipt still "
+                    + "returns to the tools/call that started the program, and the task's end arrives as a "
+                    + "task_finished event", false);
+        }
+        return content(renderStop(report), false);
+    }
+
+    /** stop 的回执读法:停了什么、之前在不在跑、停在了哪里,一样一样写清。 */
+    private static String renderStop(NumenActuator.StopReport r) {
+        if (!r.wasRunning()) {
+            String where = r.stoppedAt() == null || r.stoppedAt().isBlank()
+                    ? "the body was already idle" : r.stoppedAt();
+            return "nothing was running on this client (wasRunning: false) — " + where;
+        }
+        StringBuilder sb = new StringBuilder("stopped (wasRunning: true):\n");
+        if (r.program() != null) {
+            sb.append("- program ").append(r.program()).append(" — ").append(r.stoppedAt()).append('\n');
+            if (r.receipt() != null && !r.receipt().isBlank()) {
+                sb.append("  its receipt: ").append(r.receipt().replace('\n', ' ')).append('\n');
+            }
+        }
+        if (r.task() != null) {
+            sb.append("- body task \"").append(r.task()).append("\" — cancelled: it winds down on the server's ")
+                    .append("next tick and reports as a task_finished(status=stopped) event\n");
+        }
+        return sb.toString().stripTrailing();
+    }
+
+    /**
+     * 租约的只读查询(排障用):还剩多少秒、上次续约是哪一刻、有没有调用在飞、身体是不是在待机。
+     * <b>不续约</b>——查询本身不该成为心跳。
+     */
+    private JsonObject handleLeaseStatus() {
+        McpMode m = McpMode.instance();
+        long now = System.currentTimeMillis();
+        boolean enabled = m.enabled();
+        boolean ok = m.leaseOk();
+        long renewed = m.lastRenewedMs();
+        String state = !enabled ? "off" : ok ? "active" : renewed == 0 ? "never" : "expired";
+        StringBuilder sb = new StringBuilder();
+        sb.append("lease: ").append(state).append('\n');
+        sb.append("lease_seconds: ").append(m.config().leaseSeconds()).append('\n');
+        sb.append("remaining_seconds: ").append(m.leaseRemainingSeconds()).append('\n');
+        sb.append("last_renewal: ");
+        if (renewed == 0) {
+            sb.append("never");
+        } else {
+            sb.append(java.time.Instant.ofEpochMilli(renewed)).append(" (")
+                    .append(Math.max(0, now - renewed) / 1000).append("s ago)");
+        }
+        sb.append('\n');
+        sb.append("in_flight_calls: ").append(m.inFlightCalls()).append('\n');
+        sb.append("standby: ").append(enabled && !ok).append('\n');
+        sb.append("client: ").append(m.clientName() == null ? "(none)" : m.clientName()).append('\n');
+        long last = m.lastActivityMs();
+        sb.append("last_request: ").append(last == 0 ? "never"
+                : java.time.Instant.ofEpochMilli(last).toString() + " (" + Math.max(0, now - last) / 1000 + "s ago)");
+        return content(sb.toString(), false);
     }
 
     private JsonObject handleToolInvoke(String toolName, JsonObject args) throws Exception {

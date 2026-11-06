@@ -49,6 +49,10 @@ public final class NumenForgeClient {
         com.dwinovo.numen.mcp.server.NumenMcp.initClient(
                 net.minecraftforge.fml.loading.FMLPaths.CONFIGDIR.get());
 
+        // /live 只读小门(127.0.0.1:8766):读 NumenMcp 刚装好的配置,开着就起服。
+        // 采样线挂在下面的 onClientTick(LiveState.clientTick)。
+        com.dwinovo.numen.client.live.LiveServer.startFromConfig();
+
         // 同伴数据的根,以及旧布局的一次性迁移。根从 FML 拿,不问 Minecraft
         // (datagen 里模组照样构造,那时没有 Minecraft 实例)。
         com.dwinovo.numen.client.agent.CompanionHome.init(
@@ -98,6 +102,8 @@ public final class NumenForgeClient {
         event.register(com.dwinovo.numen.client.NumenKeys.COMPANION_WHEEL);
         event.register(com.dwinovo.numen.client.NumenKeys.TALK_COMPANION);
         event.register(com.dwinovo.numen.client.NumenKeys.QUICK_VOICE);
+        // F9 → Numen 面板开关(无屏时开面板,面板内按 F9 关)。
+        event.register(com.dwinovo.numen.client.NumenKeys.STATUS_HUD);
     }
 
     static void onClientTick(TickEvent.ClientTickEvent event) {
@@ -107,6 +113,8 @@ public final class NumenForgeClient {
         com.dwinovo.numen.client.NumenKeys.tick();
         com.dwinovo.numen.client.agent.AgentLoopRegistry.tickAll();
         com.dwinovo.numen.mcp.server.McpMode.instance().clientTick();
+        com.dwinovo.numen.client.live.LiveState.clientTick();
+        com.dwinovo.numen.client.hud.YuukaStatusHud.tick();
     }
 
     static void onLoggingOut(ClientPlayerNetworkEvent.LoggingOut event) {
@@ -135,6 +143,10 @@ public final class NumenForgeClient {
         event.registerAboveAll("message_notices",
                 (gui, g, partialTick, screenWidth, screenHeight) ->
                         com.dwinovo.numen.client.notify.MessageNotices.renderHud(g));
+        // Yuuka 状态面板:右上角三四行小字,4Hz 采样缓存的只读快照。
+        event.registerAboveAll("yuuka_status",
+                (gui, g, partialTick, screenWidth, screenHeight) ->
+                        com.dwinovo.numen.client.hud.YuukaStatusHud.render(g));
     }
 
     /** 消息通知开着界面时画在界面上面。 */

@@ -1,5 +1,7 @@
 package com.dwinovo.numen.client.screen.settings;
 
+import com.dwinovo.numen.api.NumenActuator;
+import com.dwinovo.numen.client.agent.NumenRoster;
 import com.dwinovo.numen.client.ui.IDrawSurface;
 import com.dwinovo.numen.client.ui.NumenStyle;
 import com.dwinovo.numen.client.ui.NumenTheme;
@@ -9,6 +11,7 @@ import com.dwinovo.numen.client.ui.widget.Button;
 import com.dwinovo.numen.client.ui.widget.ConfirmDialog;
 import com.dwinovo.numen.client.ui.widget.Disclosure;
 import com.dwinovo.numen.client.ui.widget.InlineAlert;
+import com.dwinovo.numen.client.ui.widget.Label;
 import com.dwinovo.numen.client.ui.widget.ScrollBox;
 import com.dwinovo.numen.client.ui.widget.TextField;
 import com.dwinovo.numen.client.ui.widget.Toggle;
@@ -29,8 +32,9 @@ import java.util.List;
  *
  * <h2>默认只有三件事</h2>
  * 地址、令牌、复制接入提示词。接一个外部 AI 只需要这三样,新手看到的就该只有这三样。
- * 端口、局域网、调用超时、不暴露的工具、外部 AI 不动手时她怎么办——这些收进「高级设置」,
- * 想细调的人点开就是。装不下就滚动({@link ScrollBox}),不再藏一层子页。
+ * 再往上是状态四行(开着没、谁接上了、多久前有请求、租约还剩几秒)和「立即停止」——
+ * 看她在不在,不对劲就停;端口、局域网、调用超时、租约秒数、不暴露的工具——这些收进
+ * 「高级设置」,想细调的人点开就是。装不下就滚动({@link ScrollBox}),不再藏一层子页。
  *
  * <h2>两层:滚的与不滚的</h2>
  * 总开关那一行、话筒那一行、收尾的复制提示词按钮固定不动,其余的行在滚动层里。
@@ -38,10 +42,10 @@ import java.util.List;
  *
  * <h2>版式</h2>
  * 照 Telegram 设置行({@link SettingsRows}):一行一项,左标签右值或右开关,组与组之间一道宽缝——
- * 总开关、接入信息、高级设置、拨了就生效的那一条,各是一组。
+ * 总开关、状态四行、立即停止、接入信息、高级设置,各是一组。
  *
  * <h2>草稿在字段上,不在控件上</h2>
- * 端口/局域网/超时/不暴露的工具是草稿,保存才落地;草稿记在本类字段上,折叠、展开、
+ * 端口/局域网/超时/租约/不暴露的工具是草稿,保存才落地;草稿记在本类字段上,折叠、展开、
  * 重建都不会把没保存的输入弄丢。保存成功后清成 null = 交回配置当真源。
  */
 public final class BrainPanel {
@@ -56,6 +60,8 @@ public final class BrainPanel {
     private static final int RIGHT_INSET = 2;
     /** 「不暴露的工具」那一行:标签留这么宽,余下的都给输入框。 */
     private static final int HIDDEN_LABEL_W = 100;
+    /** 状态区四行的标签宽:标签只有四五个字,右侧整段都留给每帧现画的值。 */
+    private static final int STATUS_LABEL_W = 70;
 
     /** 会滚的行。 */
     private final UiRoot ui = new UiRoot();
@@ -68,8 +74,8 @@ public final class BrainPanel {
 
     /** 高级设置开着没有——状态在这儿,控件只是照着画。 */
     private boolean advanced;
-    /** 四份草稿;null = 跟着配置走(首次进来、以及保存成功之后)。 */
-    private String portText, timeoutText, hiddenText;
+    /** 五份草稿;null = 跟着配置走(首次进来、以及保存成功之后)。 */
+    private String portText, timeoutText, hiddenText, leaseText;
     private Boolean lanOn;
     private TextField portField;
     private Button saveButton;
@@ -80,6 +86,10 @@ public final class BrainPanel {
 
     /** 手绘几条的基线(滚动层坐标,画的时候减 {@link ScrollBox#offset()})。 */
     private int endpointRow, tokenRow, lanRow;
+    /** 状态区四行的顶边(滚动层坐标):行里只躺标签,右侧的值每帧照 {@link McpMode} 现画。 */
+    private int statusRunRow, statusClientRow, statusActivityRow, statusLeaseRow;
+    /** 租约输入行的顶边(滚动层坐标):那句「多久算不在」的说明画在这行下面。 */
+    private int leaseRow;
     /** 话筒那一行的顶边(固定层):起服失败与回执胶囊落在这儿,平时空着。 */
     private int msgRow;
     /** 收尾行的顶边与复制提示词按钮的宽:那句令牌提醒紧挨着它画。 */
@@ -132,10 +142,39 @@ public final class BrainPanel {
         fixedUi.add(notice).setBounds(x, msgRow - 3, w, 15);
 
         // ---- 滚动层 ----
-        // 一行一项,左标签右值(Telegram 设置行):地址、令牌的值是强调色的字,在 render 里右对齐画,
-        // 紧挨着它们的是作用在它们身上的图标钮——值右对齐贴着图标,动作就贴着它作用的那个东西。
         int top = y + SettingsRows.ROW_H + SettingsRows.GAP_H;
         int ry = top;
+
+        // 状态区,只读四行:开着没、谁接上了、多久前有请求、租约还剩几秒。
+        // 行里只放标签;右侧的值是秒级跳动的东西,跟地址/令牌一样在 render 里现画,不进草稿。
+        statusRunRow = ry;
+        SettingsRows.label(ui, "运行状态", x, ry, STATUS_LABEL_W);
+        ry += SettingsRows.ROW_H;
+        statusClientRow = ry;
+        SettingsRows.label(ui, "接入客户端", x, ry, STATUS_LABEL_W);
+        ry += SettingsRows.ROW_H;
+        statusActivityRow = ry;
+        SettingsRows.label(ui, "上次请求", x, ry, STATUS_LABEL_W);
+        ry += SettingsRows.ROW_H;
+        statusLeaseRow = ry;
+        SettingsRows.label(ui, "租约剩余", x, ry, STATUS_LABEL_W);
+        ry += SettingsRows.ROW_H;
+        SettingsRows.gap(ui, x, ry, w);
+        ry += SettingsRows.GAP_H;
+
+        // 「立即停止」紧挨着状态:看一眼不对劲,手边就得有这颗钮,不该先去开高级设置。
+        // 停的是名下每具身体上正在跑的程序与活——MCP stop 工具走的同一条路(NumenActuator.stop)。
+        Button stop = ui.add(new Button("立即停止", Button.Style.DANGER, this::stopEverything));
+        int stopW = font.width("立即停止") + 14;
+        stop.setBounds(x, SettingsRows.controlY(ry, NumenStyle.CONTROL_H), stopW, NumenStyle.CONTROL_H);
+        Label stopHint = ui.add(new Label("叫停每具身体上正在跑的程序与活", Label.Role.MUTED));
+        stopHint.setBounds(x + stopW + 10, SettingsRows.controlY(ry, 9), w - stopW - 14, 9);
+        ry += SettingsRows.ROW_H;
+        SettingsRows.gap(ui, x, ry, w);
+        ry += SettingsRows.GAP_H;
+
+        // 一行一项,左标签右值(Telegram 设置行):地址、令牌的值是强调色的字,在 render 里右对齐画,
+        // 紧挨着它们的是作用在它们身上的图标钮——值右对齐贴着图标,动作就贴着它作用的那个东西。
         endpointRow = ry;
         SettingsRows.label(ui, t("numen.brain.endpoint"), x, ry, labelW());
         iconButton(Sprites.COPY, t("numen.brain.copy"), x + w - ICON_BTN, ry,
@@ -194,6 +233,17 @@ public final class BrainPanel {
                     NUM_FIELD_W, NumenStyle.CONTROL_H);
             ry += SettingsRows.ROW_H;
 
+            // 租约:外脑在不在场的唯一判据(距上次成功的 tools/call 超过这么多秒 = 不在)。
+            // 保存时照 McpConfig.clampLeaseSeconds 夹进 30~600;范围写进下面那句说明里。
+            SettingsRows.label(ui, "租约(秒)", x, ry, w - NUM_FIELD_W - 8);
+            leaseText = leaseText != null ? leaseText : String.valueOf(cfg.leaseSeconds());
+            TextField leaseField = ui.add(new TextField(leaseText, v -> leaseText = v)
+                    .numeric().underlined(true));
+            leaseField.setBounds(x + w - RIGHT_INSET - NUM_FIELD_W, SettingsRows.controlY(ry, NumenStyle.CONTROL_H),
+                    NUM_FIELD_W, NumenStyle.CONTROL_H);
+            leaseRow = ry;
+            ry = noteBelow(leaseRow) + 9 + 3;
+
             SettingsRows.label(ui, t("numen.brain.hidden_tools"), x, ry, HIDDEN_LABEL_W);
             hiddenText = hiddenText != null ? hiddenText : String.join(", ", cfg.hiddenTools());
             int hiddenW = w - RIGHT_INSET - HIDDEN_LABEL_W - 8;
@@ -203,22 +253,21 @@ public final class BrainPanel {
                     hiddenW, NumenStyle.CONTROL_H);
             ry += SettingsRows.ROW_H;
 
+            // 旧失联回退的开关已经撤掉;只有旧配置文件里还留着 true 的才给一句说明——
+            // 字段照读照写(为兼容旧配置),但不再改变任何行为:在不在场只由租约判定。
+            if (cfg.quietFallback()) {
+                Label stale = ui.add(new Label("该选项已废弃:现在由租约决定,不再由内置脑接管。",
+                        Label.Role.MUTED));
+                stale.setBounds(x, SettingsRows.controlY(ry, 9), w, 9);
+                ry += SettingsRows.ROW_H;
+            }
+
             saveButton = ui.add(new Button(saveLabel(), Button.Style.NORMAL, this::save));
             saveButton.setBounds(x + w - RIGHT_INSET - SAVE_W, SettingsRows.controlY(ry, NumenStyle.CONTROL_H),
                     SAVE_W, NumenStyle.CONTROL_H);
             refreshSaveState();
             ry += SettingsRows.ROW_H;
-
-            // 上面那四行要点保存才算数,下面这个拨了就算——分成两组,中间一道宽缝,别让人以为还得保存。
-            SettingsRows.gap(ui, x, ry, w);
-            ry += SettingsRows.GAP_H;
-
-            SettingsRows.label(ui, I18n.get("numen.brain.quiet_toggle", McpMode.QUIET_AFTER_MS / 60_000L),
-                    x, ry, w - 28);
-            Toggle quiet = ui.add(new Toggle(cfg.quietFallback(),
-                    McpMode.instance()::setQuietFallback));
-            quiet.setBounds(x + w - 24, SettingsRows.controlY(ry, 11), 22, 11);
-            bottom = ry + SettingsRows.ROW_H;
+            bottom = ry;
         }
 
         // 视口到话筒那一行为止;内容装不下就滚,装得下连拇指都不画。
@@ -300,20 +349,66 @@ public final class BrainPanel {
                 timeout = cfg.callTimeoutSeconds();
             }
         }
+        // 租约照配置自己的规矩夹进 30~600(与读配置时的行为一致);填不成数 = 保持配置原值。
+        int lease = cfg.leaseSeconds();
+        if (leaseText != null && !leaseText.isBlank()) {
+            try {
+                lease = McpConfig.clampLeaseSeconds(Integer.parseInt(leaseText.strip()));
+            } catch (NumberFormatException e) {
+                lease = cfg.leaseSeconds();
+            }
+        }
         boolean ok = McpMode.instance().applySettings(
                 lanNow() ? McpConfig.ANY_HOST : McpConfig.LOOPBACK,
                 portValue(),
                 Math.max(1, timeout),
                 hidden,
-                McpMode.instance().token());
+                McpMode.instance().token(),
+                lease);
         if (ok) {
             // 落地了,配置重新成为真源——草稿清空,下次 build 照配置填。
-            portText = timeoutText = hiddenText = null;
+            portText = timeoutText = hiddenText = leaseText = null;
             lanOn = null;
             notice.show(InlineAlert.Severity.SUCCESS, t("numen.brain.saved"), 2_000);
         } else {
             // 起服失败最常见的就是端口被占用——把话挂回出错的那个框,别飘在别处
             portField.setError(I18n.get("numen.brain.port_taken", portValue()));
+        }
+    }
+
+    // ---- 立即停止 ----
+
+    /**
+     * 主人亲手停:名下每具身体各走一道 {@link NumenActuator#stop}——MCP 的 stop 工具走的同一条路,
+     * 三路互斥(外脑在跑段按编号切断、回执照原路交回;她自己的回合走 halt(OWNER_STOP);
+     * 服务端自己起的那段发不认编号的叫停),不弹审批、幂等。回执都落在主人客户端的主线程,
+     * 所以在回调里直接写 UI;最后一笔回来时在话筒行报一句账:停了什么,或确实没什么在跑。
+     */
+    private void stopEverything() {
+        List<NumenRoster.Entry> roster = NumenRoster.instance().entries();
+        if (roster.isEmpty()) {
+            notice.show(InlineAlert.Severity.INFO, "名下没有同伴,没有可停的东西", 2_000);
+            return;
+        }
+        int[] pending = {roster.size()};
+        StringBuilder stopped = new StringBuilder();
+        for (NumenRoster.Entry entry : roster) {
+            NumenActuator.stop(new NumenActuator.StopRequest(entry.uuid())).whenComplete((report, err) -> {
+                if (stopped.length() > 0) stopped.append(";");
+                if (err != null) {
+                    stopped.append(entry.name()).append(":叫停没能发出去");
+                } else if (report.wasRunning()) {
+                    String what = report.program() != null ? report.program() : report.task();
+                    stopped.append(entry.name()).append(":").append(what != null ? what : "在跑的东西");
+                }
+                if (--pending[0] == 0) {
+                    if (stopped.length() > 0) {
+                        notice.show(InlineAlert.Severity.SUCCESS, "已停下:" + stopped, 4_000);
+                    } else {
+                        notice.show(InlineAlert.Severity.INFO, "没有在跑的东西", 2_000);
+                    }
+                }
+            });
         }
     }
 
@@ -332,7 +427,8 @@ public final class BrainPanel {
                 () -> {
                     McpConfig cfg = McpMode.instance().config();
                     McpMode.instance().applySettings(cfg.host(), cfg.port(),
-                            cfg.callTimeoutSeconds(), cfg.hiddenTools(), McpConfig.mintToken());
+                            cfg.callTimeoutSeconds(), cfg.hiddenTools(), McpConfig.mintToken(),
+                            cfg.leaseSeconds());
                     notice.show(InlineAlert.Severity.SUCCESS, t("numen.brain.saved"), 2_000);
                     build(x, y, w, h);   // 令牌从无到有时,复制钮得跟着亮起来
                 });
@@ -350,6 +446,37 @@ public final class BrainPanel {
 
         scroll.beginClip(s);
         int dy = -scroll.offset();
+        // 状态区四行的值:数据(开着没、谁接上、多久前、租约剩几秒)每帧照 McpMode 现读,
+        // 右对齐画在各自的标签行里;「已失联」用醒目的红——那是身体已经停下待机的信号。
+        // 口径先看有没有人接过、再看租约:从没接入不是"过期",别把两件事说混。
+        int statusX = x + STATUS_LABEL_W + 8;
+        int statusRight = x + w - 4;
+        boolean on = mcp.enabled();
+        String who = mcp.clientName();
+        rightValue(s, on ? "已开启" : "已关闭", statusX, statusRight, statusRunRow + dy,
+                on ? c.success() : c.textMuted());
+        rightValue(s, !on ? "—" : (who == null ? "尚无客户端接入" : who), statusX, statusRight,
+                statusClientRow + dy, on && who != null ? c.accent() : c.textMuted());
+        rightValue(s, !on ? "—" : (mcp.lastActivityMs() == 0 ? "从未" : sinceLabel(mcp.lastActivityMs())),
+                statusX, statusRight, statusActivityRow + dy,
+                on && mcp.lastActivityMs() > 0 ? c.accent() : c.textMuted());
+        long leaseLeft = mcp.leaseRemainingSeconds();
+        String leaseValue;
+        int leaseColor;
+        if (!on) {
+            leaseValue = "—";
+            leaseColor = c.textMuted();
+        } else if (leaseLeft > 0) {
+            leaseValue = leaseLeft + " 秒";
+            leaseColor = c.accent();
+        } else if (mcp.lastRenewedMs() == 0) {
+            leaseValue = "还没有请求";
+            leaseColor = c.textMuted();
+        } else {
+            leaseValue = "已失联,身体在安全待机";
+            leaseColor = c.danger();
+        }
+        rightValue(s, leaseValue, statusX, statusRight, statusLeaseRow + dy, leaseColor);
         // 地址与令牌:行右侧的值(Telegram 设置行右侧是强调色的字),右对齐贴着各自的图标钮
         int valueX = x + labelW() + 8;
         rightValue(s, mcp.endpoint(), valueX, x + w - ICON_BTN - 4, endpointRow + dy, c.accent());
@@ -363,18 +490,25 @@ public final class BrainPanel {
                 s.drawText(t(noToken ? "numen.brain.lan_needs_token" : "numen.brain.lan_warn"),
                         x, noteBelow(lanRow) + dy, noToken ? c.danger() : c.warning(), false);
             }
+            // 租约那一行的说明:一句说清"多久算不在"与"不在了会怎样"——待机,不是交还内脑。
+            s.drawText("30 到 600 秒。大脑每隔这么久没请求,就认为它不在了;身体会停下并待机,不会让内置脑接管。",
+                    x, noteBelow(leaseRow) + dy, c.textMuted(), false);
         }
         ui.renderContent(s, c, mouseX, mouseY, nowMs);
         scroll.endClip(s);
         scroll.renderThumb(s, c);
 
-        // 开着时开关左边报一句接上没接上(等待接入 / 谁在用 · 多久前);关着时开关自己就说明了。
+        // 开着时开关左边报一句在场状态(等待接入 / 谁在用 · 多久前 · 租约剩多久;过期报待机),
+        // 底色跟着租约三态走:在场=绿;还没续约=灰(刚开服没人连是常态,不算警报);
+        // 续过约又断了=红,身体已经停下待机。关着时开关自己就说明了。
         if (mcp.enabled()) {
             String badge = statusLine(mcp);
             int bw = Minecraft.getInstance().font.width(badge) + 8;
+            int badgeBg = mcp.leaseOk() ? c.success()
+                    : (mcp.lastRenewedMs() <= 0 ? c.textMuted() : c.danger());
             Badge.draw(s, badge, x + w - 30 - bw,
                     SettingsRows.controlY(y, s.lineHeight()),
-                    mcp.clientName() == null ? c.warning() : c.success(), 0xFFFFFFFF);
+                    badgeBg, 0xFFFFFFFF);
         }
         // 令牌就在提示词里,这句提醒紧挨着那个按钮——它是按钮的注脚,不是另起一行的公告。
         s.drawText(TextClip.fit(s, t("numen.brain.prompt_warn"), w - promptW - 8),
@@ -450,11 +584,16 @@ public final class BrainPanel {
         notice.show(InlineAlert.Severity.SUCCESS, t("numen.brain.copied"), 1_500);
     }
 
-    /** 开着时的一句:等谁来接,或者谁在用、多久前活跃过。关着不说——开关自己就说明了。 */
+    /** 开着时的一句:先看有没有续过约,再看租约——从没续约(包括握了手还没成功调用过)不是
+     *  "过期",别把两件事说混;在场才报谁在用、多久前活跃过、租约还剩多久。租约那两句直接
+     *  写中文不走语言表:这是本页新造的口径,新增 key 会掉进 en_us 有、zh_cn 缺的坑。 */
     private static String statusLine(McpMode mcp) {
-        String who = mcp.clientName();
-        if (who == null) return t("numen.brain.status_waiting");
-        return I18n.get("numen.brain.status_connected", who, sinceLabel(mcp.lastActivityMs()));
+        if (mcp.lastRenewedMs() <= 0) return t("numen.brain.status_waiting");
+        if (!mcp.leaseOk()) {
+            return "已失联,身体在安全待机";
+        }
+        return I18n.get("numen.brain.status_connected", mcp.clientName(), sinceLabel(mcp.lastActivityMs()))
+                + " · 租约剩 " + mcp.leaseRemainingSeconds() + " 秒";
     }
 
     private static String sinceLabel(long stampMs) {

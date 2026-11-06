@@ -117,6 +117,30 @@ final class CompanionBrain {
     }
 
     /**
+     * 外接驾驶中先把重放按下了没(只记第一 tick,不逐刻刷日志)。
+     */
+    private boolean replayDeferredLogged;
+
+    /**
+     * 取走重启前留下的那件活交给调度器重放——<b>外接驾驶时按下不取</b>:重放是没人下令
+     * 自己起活,会当场抢驾驶席。镜像见 {@link DrivingMirror};交还后的第一个 tick 自然
+     * 取走重放,驾驶中派下的新活照旧由 {@link #assign} 把它顶替。null = 还没有(或还按着)。
+     */
+    TaskPersistence.LeftOver takeLeftOverToReplay(NumenPlayer companion, boolean externalDriving) {
+        if (externalDriving) {
+            if (leftOver != null && !replayDeferredLogged) {
+                replayDeferredLogged = true;
+                com.dwinovo.numen.Constants.LOG.debug(
+                        "[numen-task] {} 外接驾驶中,重启前的活「{}」按下不重放,交还后再接",
+                        companion.getUUID(), leftOver.taskName());
+            }
+            return null;
+        }
+        replayDeferredLogged = false;
+        return takeLeftOver();
+    }
+
+    /**
      * 往当前任务槽派一件新活({@code runner} 是跑它的任务,准备过的就是准备它的那一个)——派活只有这一个入口。重启前留下、
      * 还没接回来的那件由它顶替,和槽里原有的活被换掉一样告诉她。
      */
@@ -130,6 +154,19 @@ final class CompanionBrain {
 
     void tick(NumenPlayer companion) {
         body = companion;
+        // 驾驶席在外脑手里时,自己起活的两层整体让位:反射层(五条生存链)与空闲姿态层
+        // (说话看人)都是没人下令的自主动作,外接驾驶期间救不救由外部大脑自己决定。
+        // 镜像与客户端 McpMode.driving() 同一口径(见 DrivingMirror)。2、3 两层不拦——
+        // 那是经工具口派下来的同步动作与任务,拦了就是把外脑自己也关在门外。
+        boolean external = DrivingMirror.isDriving(companion);
+        if (external != externalLastTick) {
+            externalLastTick = external;
+            com.dwinovo.numen.Constants.LOG.debug(
+                    "[numen-task] {} 驾驶席{}:反射层与空闲姿态层{}",
+                    companion.getUUID(),
+                    external ? "翻到外接,自己起活的两层让位" : "交还内脑,恢复出价",
+                    external ? "整体按下" : "重新放开");
+        }
         // 准备不占身体:先问它有没有结论,就绪的这一刻受理进槽,接着和槽里的活一样参加这一刻的选择
         preparing.tick();
         // 任务结束边沿(宪法 §5):两个槽都空过了宽限窗口,显式占用的会话就结束了,
@@ -138,8 +175,8 @@ final class CompanionBrain {
             TaskSessionHooks.fireSessionEnd(companion);
         }
 
-        Task winner = TaskSelector.select(reflexes, slotTask(sync, companion),
-                slotTask(current, companion), idlePoses, companion);
+        Task winner = TaskSelector.select(external ? null : reflexes, slotTask(sync, companion),
+                slotTask(current, companion), external ? null : idlePoses, companion);
 
         if (holder != null && holder != winner) {
             holder.stop(companion, Task.StopReason.PREEMPTED);
@@ -230,6 +267,9 @@ final class CompanionBrain {
 
     /** 上一刻当前任务槽是不是空的——用来只在"刚变空"那一刻清记录,不必每刻写盘。 */
     private boolean wasIdle = true;
+
+    /** 上一刻驾驶席在不在外脑手里——只用来在翻转边沿记一句,不逐刻刷。 */
+    private boolean externalLastTick;
 
     /** 死亡:丢掉在跑的任务与在准备的调用,并结束任务作用域的手部占用。 */
     void dropActiveNoResult(NumenPlayer companion) {

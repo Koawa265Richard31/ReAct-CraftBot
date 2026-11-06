@@ -93,6 +93,9 @@ public final class TaskPersistence {
      * 重启后把她手上的活接回来:把记下的那一行 Lua 在服务端再跑一遍。接不回来——函数在这一版里没了、那一行读不通、调用被拒、参数
      * 已经不成立或受理之前的准备没过——都不阻断:身体照样起来,她空着手,并收到一条 task_finished 说清为什么。她的历史里还留着那件活,
      * 不给个了结她会一直干等。<b>不做兼容转接</b>:旧版本记下的一行命令不再跑,猜它的意思她可能去打错的东西。
+     *
+     * <p>外接驾驶时不会走到这里(重放是没人下令自己起活):记号被
+     * {@link CompanionBrain#takeLeftOverToReplay} 按下,交还后的第一个 tick 再接。
      */
     static void replay(NumenPlayer companion, LeftOver left) {
         String taskName = left.taskName();

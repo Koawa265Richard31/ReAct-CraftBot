@@ -21,7 +21,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class McpConfigGuardTest {
 
     private static McpConfig with(String host, String token) {
-        return new McpConfig(true, host, 8765, token, 300, List.of(), false);
+        return new McpConfig(true, host, 8765, token, 300, List.of(), 90, false);
     }
 
     // ---- 够不够得着 ----
@@ -90,16 +90,38 @@ class McpConfigGuardTest {
         assertFalse(McpConfig.mintToken().isBlank());
     }
 
+    // ---- 租约 ----
+
+    @Test
+    void leaseSecondsAreClampedIntoRange() {
+        // 太短会被长轮询的正常间隔误判成失联,太长则外脑真没了身体要空等
+        assertEquals(30, McpConfig.clampLeaseSeconds(5));
+        assertEquals(30, McpConfig.clampLeaseSeconds(-1));
+        assertEquals(90, McpConfig.clampLeaseSeconds(90));
+        assertEquals(600, McpConfig.clampLeaseSeconds(9999));
+    }
+
+    @Test
+    void withersCarryTheLeaseAlongAndClampIt() {
+        McpConfig base = new McpConfig(true, "127.0.0.1", 8765, "tok", 300, List.of(), 120, false);
+        McpConfig moved = base.withEndpoint("0.0.0.0", 9000, 60).withToken("x")
+                .withHiddenTools(List.of("a")).withEnabled(false).withQuietFallback(true);
+        assertEquals(120, moved.leaseSeconds(), "改别的字段不该把租约改回默认");
+        assertEquals(180, base.withLeaseSeconds(180).leaseSeconds());
+        assertEquals(600, base.withLeaseSeconds(9999).leaseSeconds(), "写配置时同样夹住");
+    }
+
     // ---- 改一项不动其它项 ----
 
     @Test
     void eachWitherLeavesTheRestAlone() {
-        McpConfig base = new McpConfig(true, "127.0.0.1", 8765, "tok", 300, List.of("todo"), false);
+        McpConfig base = new McpConfig(true, "127.0.0.1", 8765, "tok", 300, List.of("todo"), 90, false);
 
         McpConfig moved = base.withEndpoint("0.0.0.0", 9000, 60);
         assertEquals("tok", moved.token());
         assertEquals(List.of("todo"), moved.hiddenTools());
         assertTrue(moved.enabled());
+        assertEquals(90, moved.leaseSeconds());
 
         McpConfig retokened = base.withToken("new");
         assertEquals(8765, retokened.port());

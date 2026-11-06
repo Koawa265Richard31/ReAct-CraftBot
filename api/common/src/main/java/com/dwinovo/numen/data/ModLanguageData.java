@@ -108,6 +108,9 @@ public final class ModLanguageData {
         /** Hotkey (hold): push-to-talk voice to the current interaction target. */
         public static final String KEY_QUICK_VOICE = "key.numen.quick_voice";
 
+        /** Hotkey: toggle the Yuuka status panel (top-right HUD lines). */
+        public static final String KEY_STATUS_HUD = "key.numen.status_hud";
+
         /** Dedicated Minecraft Controls category so the hotkey gets its own "Numen" section. */
         public static final String KEY_CATEGORY_NUMEN = "key.categories.numen";
 
@@ -311,6 +314,8 @@ public final class ModLanguageData {
         public static final String COMMAND_CONSENT_ANSWERED  = "numen.command.consent_answered";
         public static final String COMMAND_CONSENT_NOT_OWNER = "numen.command.consent_not_owner";
         public static final String COMMAND_CONSENT_NOT_PENDING = "numen.command.consent_not_pending";
+        /** /numen drive 在外脑驾驶中的第一次:只提示,要带 confirm 字面量再跑一次(%s 是同伴名)。 */
+        public static final String COMMAND_DRIVE_CONFIRM_NEEDED = "numen.command.drive_confirm_needed";
         public static final String DEBUG_ON          = "numen.debug.on";
         public static final String DEBUG_OFF         = "numen.debug.off";
         public static final String DEBUG_PAD_ON      = "numen.debug.pad_on";
@@ -391,6 +396,90 @@ public final class ModLanguageData {
         public static final String MCP_OAUTH_OK = "numen.mcp.oauth_ok";
         public static final String MCP_OAUTH_FAILED = "numen.mcp.oauth_failed";
         public static final String SKIN_PROFILE_NO_SKIN = "numen.skin.profile_no_skin";
+
+        // Numen 面板(F9):左栏七格 + 底部两格的文案。页面内的文案归各自的页面文件,不收在这里。
+        public static final String PANEL_TITLE         = "numen.panel.title";
+        public static final String PANEL_NAV_CHARACTER = "numen.panel.nav.character";
+        public static final String PANEL_NAV_TASKS     = "numen.panel.nav.tasks";
+        public static final String PANEL_NAV_CHAT      = "numen.panel.nav.chat";
+        public static final String PANEL_NAV_SKILLS    = "numen.panel.nav.skills";
+        public static final String PANEL_NAV_USAGE     = "numen.panel.nav.usage";
+        public static final String PANEL_NAV_NOTIFY    = "numen.panel.nav.notify";
+        public static final String PANEL_NAV_SETTINGS  = "numen.panel.nav.settings";
+        public static final String PANEL_MINIBAR       = "numen.panel.minibar";
+        public static final String PANEL_ABORT         = "numen.panel.abort";
+        /** 叫停的二次确认:第一次点只进入待确认态,按钮文案换成这条。 */
+        public static final String PANEL_ABORT_CONFIRM = "numen.panel.abort_confirm";
+        public static final String PANEL_RESET         = "numen.panel.reset";
+        public static final String PANEL_DONE          = "numen.panel.done";
+        /** 页面槽位还没被后面的页面文件填上时,右栏显示的占位句。 */
+        public static final String PANEL_PAGE_PENDING  = "numen.panel.page_pending";
+
+        // 角色页(CharacterPage):状态条分段与各分区标题/空态。搬迁时从字面量收进来,
+        // 前缀沿用面板骨架的 panel 段;带尾随空格的分段标签(血量/饥饿/活动)原样保留。
+        public static final String PANEL_CHAR_HP             = "numen.panel.char.hp";
+        public static final String PANEL_CHAR_UNKNOWN        = "numen.panel.char.unknown";
+        public static final String PANEL_CHAR_FOOD           = "numen.panel.char.food";
+        public static final String PANEL_CHAR_ACTIVITY       = "numen.panel.char.activity";
+        /** 外接脑三态:关 = 内置脑 / 开而租约失效 = 未连接 / 开且在场 = 外部驱动 %ss。 */
+        public static final String PANEL_CHAR_BRAIN_BUILTIN  = "numen.panel.char.brain_builtin";
+        public static final String PANEL_CHAR_BRAIN_OFFLINE  = "numen.panel.char.brain_offline";
+        public static final String PANEL_CHAR_BRAIN_LEASE    = "numen.panel.char.brain_lease";
+        public static final String PANEL_CHAR_GEAR           = "numen.panel.char.gear";
+        public static final String PANEL_CHAR_GEAR_EMPTY     = "numen.panel.char.gear_empty";
+        public static final String PANEL_CHAR_READONLY       = "numen.panel.char.readonly";
+        public static final String PANEL_CHAR_BACKPACK       = "numen.panel.char.backpack";
+        public static final String PANEL_CHAR_BACKPACK_EMPTY = "numen.panel.char.backpack_empty";
+        public static final String PANEL_CHAR_HOTBAR         = "numen.panel.char.hotbar";
+        public static final String PANEL_CHAR_EXTRA          = "numen.panel.char.extra";
+
+        // 设置页(SettingsPage)外接脑区块与二级列表:状态组/8766 组/文件组/工具组的
+        // 标签、行注与空态,搬迁时从字面量收进来,键名照面板骨架的 panel 段。
+        public static final String PANEL_SETTINGS_EXTERNAL         = "numen.panel.settings.external";
+        public static final String PANEL_SETTINGS_BRIDGED          = "numen.panel.settings.bridged";
+        public static final String PANEL_SETTINGS_UNBRIDGED        = "numen.panel.settings.unbridged";
+        public static final String PANEL_SETTINGS_STATUS           = "numen.panel.settings.status";
+        public static final String PANEL_SETTINGS_MODEL_PROVIDER   = "numen.panel.settings.model_provider";
+        public static final String PANEL_SETTINGS_SESSION          = "numen.panel.settings.session";
+        public static final String PANEL_SETTINGS_TICK             = "numen.panel.settings.tick";
+        public static final String PANEL_SETTINGS_TEMPERATURE      = "numen.panel.settings.temperature";
+        public static final String PANEL_SETTINGS_INTERVAL         = "numen.panel.settings.interval";
+        /** 温度 / 状态表频率这类只读旋钮的行尾注:要改得去 host 配置。 */
+        public static final String PANEL_SETTINGS_HOST_NOTE        = "numen.panel.settings.host_note";
+        public static final String PANEL_SETTINGS_LIVE_GATE        = "numen.panel.settings.live_gate";
+        public static final String PANEL_SETTINGS_RESTART_NOTE     = "numen.panel.settings.restart_note";
+        /** 写 8766 配置失败时内联警报的抬头,%s 是原因。 */
+        public static final String PANEL_SETTINGS_WRITE_FAIL       = "numen.panel.settings.write_fail";
+        public static final String PANEL_SETTINGS_FILES            = "numen.panel.settings.files";
+        public static final String PANEL_SETTINGS_MOD_CFG          = "numen.panel.settings.mod_cfg";
+        public static final String PANEL_SETTINGS_PERSONA_FILE     = "numen.panel.settings.persona_file";
+        public static final String PANEL_SETTINGS_TICK_CFG         = "numen.panel.settings.tick_cfg";
+        public static final String PANEL_SETTINGS_STATE_FILE       = "numen.panel.settings.state_file";
+        public static final String PANEL_SETTINGS_TOOLS            = "numen.panel.settings.tools";
+        /** 工具行右侧的来源标:身体工具 / 大脑工具。 */
+        public static final String PANEL_SETTINGS_SRC_BODY         = "numen.panel.settings.src.body";
+        public static final String PANEL_SETTINGS_SRC_BRAIN        = "numen.panel.settings.src.brain";
+        public static final String PANEL_SETTINGS_BODY_TOOLS_NONE  = "numen.panel.settings.body_tools_none";
+        /** 脚本 API 一行尾部带的函数计数,%s 是个数。 */
+        public static final String PANEL_SETTINGS_API_FUNCS        = "numen.panel.settings.api_funcs";
+        /** 脚本 API 折叠组行,%s 是组内行数。 */
+        public static final String PANEL_SETTINGS_API_GROUPS       = "numen.panel.settings.api_groups";
+        public static final String PANEL_SETTINGS_API_NONE         = "numen.panel.settings.api_none";
+        public static final String PANEL_SETTINGS_BRAIN_TOOLS_NONE = "numen.panel.settings.brain_tools_none";
+        public static final String PANEL_SETTINGS_BRAIN_TOOLS_OFF  = "numen.panel.settings.brain_tools_off";
+        public static final String PANEL_SETTINGS_COPY             = "numen.panel.settings.copy";
+        public static final String PANEL_SETTINGS_FOLDER           = "numen.panel.settings.folder";
+        /** 8766 配置文件不存在时的报错,%s 是文件名。 */
+        public static final String PANEL_SETTINGS_CFG_MISSING      = "numen.panel.settings.cfg_missing";
+        public static final String PANEL_SETTINGS_NO_SNAPSHOT      = "numen.panel.settings.no_snapshot";
+        /** 快照年龄,%s 是秒数(带小数)。 */
+        public static final String PANEL_SETTINGS_AGO              = "numen.panel.settings.ago";
+        /** 租约剩余,%s 是整秒数。 */
+        public static final String PANEL_SETTINGS_LEASE_SEC        = "numen.panel.settings.lease_sec";
+        public static final String PANEL_SETTINGS_NO_REQUEST       = "numen.panel.settings.no_request";
+        public static final String PANEL_SETTINGS_LEASE_LOST       = "numen.panel.settings.lease_lost";
+        /** 文件区一行指向的文件在盘上不存在时,行尾补的那句。 */
+        public static final String PANEL_SETTINGS_NOT_FOUND        = "numen.panel.settings.not_found";
     }
 
     /** Loader-side providers funnel both English and Simplified Chinese through here. */
@@ -416,6 +505,7 @@ public final class ModLanguageData {
         adder.add(Keys.KEY_TALK_COMPANION, "Talk to Companion");
         adder.add(Keys.KEY_COMPANION_WHEEL, "Companion Wheel (hold)");
         adder.add(Keys.KEY_QUICK_VOICE, "Quick Voice (hold)");
+        adder.add(Keys.KEY_STATUS_HUD, "Toggle Numen Panel");
         adder.add(Keys.KEY_CATEGORY_NUMEN, "Numen");
 
         // --- consolidated into the datagen source (persona / mcp / reasoning / tabs / status ...) ---
@@ -443,11 +533,7 @@ public final class ModLanguageData {
         adder.add("numen.brain.since_min", "%dmin ago");
         adder.add("numen.brain.console_title", "External brain console");
         adder.add("numen.brain.console_empty", "Say something below, or wait for the AI to act — the conversation shows up here.");
-        adder.add("numen.brain.quiet_standby", "The external brain has gone quiet — your companion is standing by.");
-        adder.add("numen.brain.quiet_fallback", "The external brain has gone quiet — the built-in brain is taking over until it returns.");
         adder.add("numen.brain.advanced", "Advanced");
-        adder.add("numen.brain.back_active", "The external brain is back.");
-        adder.add("numen.brain.quiet_toggle", "Disconnect after %s min of silence");
         adder.add("numen.brain.guide_title", "Connect an external AI");
         adder.add("numen.brain.guide_step",
                 "Copy the setup prompt in Settings → MCP Brain, paste it to your AI, and it configures the rest.");
@@ -844,15 +930,16 @@ public final class ModLanguageData {
         adder.add(Keys.COMMAND_CONSENT_ANSWERED,  "Answered consent request #%s for %s: %s");
         adder.add(Keys.COMMAND_CONSENT_NOT_OWNER, "Consent request #%s belongs to a companion that is not yours");
         adder.add(Keys.COMMAND_CONSENT_NOT_PENDING, "No pending consent request #%s (already answered, expired or replaced)");
+        adder.add(Keys.COMMAND_DRIVE_CONFIRM_NEEDED, "An external brain is driving %s — this would move her body over its hands. Nothing was run; append `confirm` before the program to go ahead.");
         adder.add(Keys.DEBUG_ON,          "Debug mode on: path particles, and UI text shown unfiltered");
         adder.add(Keys.DEBUG_OFF,         "Debug mode off");
         adder.add(Keys.DEBUG_PAD_ON,      "Companion loading pad on (the default)");
         adder.add(Keys.DEBUG_PAD_OFF,     "Companion loading pad off: companions only act in chunks that players keep loaded (for diagnosis)");
         adder.add(Keys.LOOP_GONE, "She is gone");
-        adder.add(Keys.LOOP_EXTERNAL_COMPACT, "An external model is driving her; compacting waits until the built-in brain has her back");
+        adder.add(Keys.LOOP_EXTERNAL_COMPACT, "The external brain is on, so she won't compact — that's the built-in brain's job. Turn the external brain off in settings first.");
         adder.add(Keys.LOOP_COMPACTING, "Already compacting");
         adder.add(Keys.LOOP_COMPACT_QUEUED, "Compacting is already queued");
-        adder.add(Keys.LOOP_EXTERNAL_CLEAR, "An external model is driving her; clearing the context waits until the built-in brain has her back");
+        adder.add(Keys.LOOP_EXTERNAL_CLEAR, "The external brain is on, so she won't clear the context — that's the built-in brain's job. Turn the external brain off in settings first.");
         adder.add(Keys.LOOP_CLEAR_QUEUED, "Clearing is already queued");
         adder.add(Keys.LOOP_CLEAR, "Clear the context");
         adder.add(Keys.LOOP_COMPACT, "Compact memory");
@@ -922,6 +1009,76 @@ public final class ModLanguageData {
         adder.add(Keys.MCP_OAUTH_OK, "Numen is authorized; you can close this page.");
         adder.add(Keys.MCP_OAUTH_FAILED, "Authorization failed: %s");
         adder.add(Keys.SKIN_PROFILE_NO_SKIN, "The profile has no skin data");
+
+        // Numen panel (F9): left rail + bottom row.
+        adder.add(Keys.PANEL_TITLE,         "Numen Panel");
+        adder.add(Keys.PANEL_NAV_CHARACTER, "Character");
+        adder.add(Keys.PANEL_NAV_TASKS,     "Tasks");
+        adder.add(Keys.PANEL_NAV_CHAT,      "Chats");
+        adder.add(Keys.PANEL_NAV_SKILLS,    "Skills");
+        adder.add(Keys.PANEL_NAV_USAGE,     "Usage");
+        adder.add(Keys.PANEL_NAV_NOTIFY,    "Notifications");
+        adder.add(Keys.PANEL_NAV_SETTINGS,  "Settings");
+        adder.add(Keys.PANEL_MINIBAR,       "Persistent mini bar");
+        adder.add(Keys.PANEL_ABORT,         "Stop");
+        adder.add(Keys.PANEL_ABORT_CONFIRM, "Confirm stop?");
+        adder.add(Keys.PANEL_RESET,         "Reset");
+        adder.add(Keys.PANEL_DONE,          "Done");
+        adder.add(Keys.PANEL_PAGE_PENDING,  "This page isn't wired up yet");
+
+        // CharacterPage: status bar segments, section titles, empty states.
+        adder.add(Keys.PANEL_CHAR_HP,             "HP ");
+        adder.add(Keys.PANEL_CHAR_UNKNOWN,        "Unknown");
+        adder.add(Keys.PANEL_CHAR_FOOD,           "Food ");
+        adder.add(Keys.PANEL_CHAR_ACTIVITY,       "Activity ");
+        adder.add(Keys.PANEL_CHAR_BRAIN_BUILTIN,  "Built-in brain");
+        adder.add(Keys.PANEL_CHAR_BRAIN_OFFLINE,  "Not connected");
+        adder.add(Keys.PANEL_CHAR_BRAIN_LEASE,    "External drive %ss");
+        adder.add(Keys.PANEL_CHAR_GEAR,           "Gear");
+        adder.add(Keys.PANEL_CHAR_GEAR_EMPTY,     "(No gear data yet · waiting for server gear sync)");
+        adder.add(Keys.PANEL_CHAR_READONLY,       "Read-only");
+        adder.add(Keys.PANEL_CHAR_BACKPACK,       "Backpack");
+        adder.add(Keys.PANEL_CHAR_BACKPACK_EMPTY, "(Backpack not synced)");
+        adder.add(Keys.PANEL_CHAR_HOTBAR,         "Hotbar");
+        adder.add(Keys.PANEL_CHAR_EXTRA,          "Extra space");
+
+        // SettingsPage: external-brain block labels, row notes, empty states.
+        adder.add(Keys.PANEL_SETTINGS_EXTERNAL,         "External brain");
+        adder.add(Keys.PANEL_SETTINGS_BRIDGED,          "External brain connected");
+        adder.add(Keys.PANEL_SETTINGS_UNBRIDGED,        "No external brain (set brain.bridgeFile in the mod config)");
+        adder.add(Keys.PANEL_SETTINGS_STATUS,           "Status");
+        adder.add(Keys.PANEL_SETTINGS_MODEL_PROVIDER,   "Model · provider");
+        adder.add(Keys.PANEL_SETTINGS_SESSION,          "Session id");
+        adder.add(Keys.PANEL_SETTINGS_TICK,             "Heartbeat tick");
+        adder.add(Keys.PANEL_SETTINGS_TEMPERATURE,      "Temperature");
+        adder.add(Keys.PANEL_SETTINGS_INTERVAL,         "State interval");
+        adder.add(Keys.PANEL_SETTINGS_HOST_NOTE,        "edit in host config");
+        adder.add(Keys.PANEL_SETTINGS_LIVE_GATE,        "8766 read-only gate");
+        adder.add(Keys.PANEL_SETTINGS_RESTART_NOTE,     "Takes effect after restarting the game client");
+        adder.add(Keys.PANEL_SETTINGS_WRITE_FAIL,       "Failed to write config: %s");
+        adder.add(Keys.PANEL_SETTINGS_FILES,            "Files");
+        adder.add(Keys.PANEL_SETTINGS_MOD_CFG,          "Mod config");
+        adder.add(Keys.PANEL_SETTINGS_PERSONA_FILE,     "Persona file");
+        adder.add(Keys.PANEL_SETTINGS_TICK_CFG,         "Preset / heartbeat config");
+        adder.add(Keys.PANEL_SETTINGS_STATE_FILE,       "State table (read-only)");
+        adder.add(Keys.PANEL_SETTINGS_TOOLS,            "Tools");
+        adder.add(Keys.PANEL_SETTINGS_SRC_BODY,         "Body");
+        adder.add(Keys.PANEL_SETTINGS_SRC_BRAIN,        "Brain");
+        adder.add(Keys.PANEL_SETTINGS_BODY_TOOLS_NONE,  "0 body tools");
+        adder.add(Keys.PANEL_SETTINGS_API_FUNCS,        "(%s functions)");
+        adder.add(Keys.PANEL_SETTINGS_API_GROUPS,       "%s groups");
+        adder.add(Keys.PANEL_SETTINGS_API_NONE,         "No script APIs registered");
+        adder.add(Keys.PANEL_SETTINGS_BRAIN_TOOLS_NONE, "0 brain tools");
+        adder.add(Keys.PANEL_SETTINGS_BRAIN_TOOLS_OFF,  "No external brain — no brain tools");
+        adder.add(Keys.PANEL_SETTINGS_COPY,             "Copy");
+        adder.add(Keys.PANEL_SETTINGS_FOLDER,           "Folder");
+        adder.add(Keys.PANEL_SETTINGS_CFG_MISSING,      "Config file missing (%s) — enable MCP mode once in game to create it");
+        adder.add(Keys.PANEL_SETTINGS_NO_SNAPSHOT,      "No snapshot");
+        adder.add(Keys.PANEL_SETTINGS_AGO,              "%ss ago");
+        adder.add(Keys.PANEL_SETTINGS_LEASE_SEC,        "%ss");
+        adder.add(Keys.PANEL_SETTINGS_NO_REQUEST,       "No requests yet");
+        adder.add(Keys.PANEL_SETTINGS_LEASE_LOST,       "Lease lost — body idling safely");
+        adder.add(Keys.PANEL_SETTINGS_NOT_FOUND,        "Not found");
     }
 
     private static void addZh(Adder adder) {
@@ -938,6 +1095,7 @@ public final class ModLanguageData {
         adder.add(Keys.KEY_TALK_COMPANION, "与同伴对话");
         adder.add(Keys.KEY_COMPANION_WHEEL, "同伴轮盘(按住)");
         adder.add(Keys.KEY_QUICK_VOICE, "快捷语音(按住)");
+        adder.add(Keys.KEY_STATUS_HUD, "Numen 面板开关");
 
         // --- consolidated into the datagen source (persona / mcp / reasoning / tabs / status ...) ---
         adder.add("numen.tab.settings", "设置");
@@ -964,11 +1122,7 @@ public final class ModLanguageData {
         adder.add("numen.brain.since_min", "%d 分钟前");
         adder.add("numen.brain.console_title", "外接大脑控制台");
         adder.add("numen.brain.console_empty", "在下面开口说话,或等外部 AI 动手——对话现场会出现在这里。");
-        adder.add("numen.brain.quiet_standby", "外接大脑没动静了——她先安静待命。");
-        adder.add("numen.brain.quiet_fallback", "外接大脑没动静了——内置大脑先接管,它回来就交还。");
         adder.add("numen.brain.advanced", "高级设置");
-        adder.add("numen.brain.back_active", "外接大脑回来了。");
-        adder.add("numen.brain.quiet_toggle", "%s 分钟无响应自动断开");
         adder.add("numen.brain.guide_title", "接入外部 AI");
         adder.add("numen.brain.guide_step",
                 "到「设置 → 外接大脑」复制接入提示词,粘贴给你的 AI,剩下的它会自己配好。");
@@ -1364,15 +1518,16 @@ public final class ModLanguageData {
         adder.add(Keys.COMMAND_CONSENT_ANSWERED,  "已答复征询 #%s(%s):%s");
         adder.add(Keys.COMMAND_CONSENT_NOT_OWNER, "征询 #%s 属于别人的同伴");
         adder.add(Keys.COMMAND_CONSENT_NOT_PENDING, "没有待答复的征询 #%s(已答复、过期或被顶掉)");
+        adder.add(Keys.COMMAND_DRIVE_CONFIRM_NEEDED, "外接大脑正驾驶着 %s —— 这条命令会越过它直接动她的身体。什么都没有执行;确认请在程序前加上 confirm 字面量再跑一次。");
         adder.add(Keys.DEBUG_ON,          "调试模式已开:路径粒子渲染 + UI 文本不过滤直出");
         adder.add(Keys.DEBUG_OFF,         "调试模式已关");
         adder.add(Keys.DEBUG_PAD_ON,      "同伴加载 pad 已开(默认状态)");
         adder.add(Keys.DEBUG_PAD_OFF,     "同伴加载 pad 已关:同伴仅在玩家加载的区块内活动(诊断用)");
         adder.add(Keys.LOOP_GONE, "她已经不在了");
-        adder.add(Keys.LOOP_EXTERNAL_COMPACT, "外接模型正在驾驶她,整理记忆要等交还给内置大脑之后");
+        adder.add(Keys.LOOP_EXTERNAL_COMPACT, "外接大脑开着,她不整理记忆——整理是内置脑的活;要整理,先到设置里关掉外接大脑。");
         adder.add(Keys.LOOP_COMPACTING, "已经在整理了");
         adder.add(Keys.LOOP_COMPACT_QUEUED, "整理已经排上了");
-        adder.add(Keys.LOOP_EXTERNAL_CLEAR, "外接模型正在驾驶她,清空上下文要等交还给内置大脑之后");
+        adder.add(Keys.LOOP_EXTERNAL_CLEAR, "外接大脑开着,她不清空上下文——清空是内置脑的活;要清空,先到设置里关掉外接大脑。");
         adder.add(Keys.LOOP_CLEAR_QUEUED, "清空已经排上了");
         adder.add(Keys.LOOP_CLEAR, "清空上下文");
         adder.add(Keys.LOOP_COMPACT, "整理记忆");
@@ -1442,5 +1597,75 @@ public final class ModLanguageData {
         adder.add(Keys.MCP_OAUTH_OK, "Numen 授权成功,可以关闭此页面。");
         adder.add(Keys.MCP_OAUTH_FAILED, "授权失败:%s");
         adder.add(Keys.SKIN_PROFILE_NO_SKIN, "档案里没有皮肤数据");
+
+        // Numen 面板(F9):左栏七格 + 底部两格。
+        adder.add(Keys.PANEL_TITLE,         "Numen 面板");
+        adder.add(Keys.PANEL_NAV_CHARACTER, "角色");
+        adder.add(Keys.PANEL_NAV_TASKS,     "任务");
+        adder.add(Keys.PANEL_NAV_CHAT,      "对话");
+        adder.add(Keys.PANEL_NAV_SKILLS,    "技能");
+        adder.add(Keys.PANEL_NAV_USAGE,     "用量");
+        adder.add(Keys.PANEL_NAV_NOTIFY,    "通知");
+        adder.add(Keys.PANEL_NAV_SETTINGS,  "设置");
+        adder.add(Keys.PANEL_MINIBAR,       "常驻小条");
+        adder.add(Keys.PANEL_ABORT,         "叫停");
+        adder.add(Keys.PANEL_ABORT_CONFIRM, "确认叫停?");
+        adder.add(Keys.PANEL_RESET,         "重置");
+        adder.add(Keys.PANEL_DONE,          "完成");
+        adder.add(Keys.PANEL_PAGE_PENDING,  "此页还没有接入");
+
+        // 角色页:状态条分段、分区标题与空态(分段标签的尾随空格原样保留)。
+        adder.add(Keys.PANEL_CHAR_HP,             "血量 ");
+        adder.add(Keys.PANEL_CHAR_UNKNOWN,        "未知");
+        adder.add(Keys.PANEL_CHAR_FOOD,           "饥饿 ");
+        adder.add(Keys.PANEL_CHAR_ACTIVITY,       "活动 ");
+        adder.add(Keys.PANEL_CHAR_BRAIN_BUILTIN,  "内置脑");
+        adder.add(Keys.PANEL_CHAR_BRAIN_OFFLINE,  "未连接");
+        adder.add(Keys.PANEL_CHAR_BRAIN_LEASE,    "外部驱动 %ss");
+        adder.add(Keys.PANEL_CHAR_GEAR,           "穿戴");
+        adder.add(Keys.PANEL_CHAR_GEAR_EMPTY,     "（暂无穿戴数据 · 等待服务端 gear 同步）");
+        adder.add(Keys.PANEL_CHAR_READONLY,       "只读");
+        adder.add(Keys.PANEL_CHAR_BACKPACK,       "背包");
+        adder.add(Keys.PANEL_CHAR_BACKPACK_EMPTY, "（背包未同步）");
+        adder.add(Keys.PANEL_CHAR_HOTBAR,         "快捷栏");
+        adder.add(Keys.PANEL_CHAR_EXTRA,          "额外空间");
+
+        // 设置页:外接脑区块与二级列表的标签、行注与空态。
+        adder.add(Keys.PANEL_SETTINGS_EXTERNAL,         "外接脑");
+        adder.add(Keys.PANEL_SETTINGS_BRIDGED,          "已接入外接脑");
+        adder.add(Keys.PANEL_SETTINGS_UNBRIDGED,        "未接入外接脑(在 mod 配置里填 brain.bridgeFile)");
+        adder.add(Keys.PANEL_SETTINGS_STATUS,           "状态");
+        adder.add(Keys.PANEL_SETTINGS_MODEL_PROVIDER,   "模型 · 供应商");
+        adder.add(Keys.PANEL_SETTINGS_SESSION,          "会话 id");
+        adder.add(Keys.PANEL_SETTINGS_TICK,             "心跳 tick");
+        adder.add(Keys.PANEL_SETTINGS_TEMPERATURE,      "温度");
+        adder.add(Keys.PANEL_SETTINGS_INTERVAL,         "状态表频率");
+        adder.add(Keys.PANEL_SETTINGS_HOST_NOTE,        "改 host 配置");
+        adder.add(Keys.PANEL_SETTINGS_LIVE_GATE,        "8766 只读小门");
+        adder.add(Keys.PANEL_SETTINGS_RESTART_NOTE,     "重开游戏客户端生效");
+        adder.add(Keys.PANEL_SETTINGS_WRITE_FAIL,       "写入配置失败:%s");
+        adder.add(Keys.PANEL_SETTINGS_FILES,            "文件");
+        adder.add(Keys.PANEL_SETTINGS_MOD_CFG,          "mod 配置");
+        adder.add(Keys.PANEL_SETTINGS_PERSONA_FILE,     "人格正文");
+        adder.add(Keys.PANEL_SETTINGS_TICK_CFG,         "preset / 心跳配置");
+        adder.add(Keys.PANEL_SETTINGS_STATE_FILE,       "状态表(只读)");
+        adder.add(Keys.PANEL_SETTINGS_TOOLS,            "工具");
+        adder.add(Keys.PANEL_SETTINGS_SRC_BODY,         "身体");
+        adder.add(Keys.PANEL_SETTINGS_SRC_BRAIN,        "大脑");
+        adder.add(Keys.PANEL_SETTINGS_BODY_TOOLS_NONE,  "身体工具 0 个");
+        adder.add(Keys.PANEL_SETTINGS_API_FUNCS,        "(%s 个函数)");
+        adder.add(Keys.PANEL_SETTINGS_API_GROUPS,       "%s 组");
+        adder.add(Keys.PANEL_SETTINGS_API_NONE,         "脚本 API 无登记");
+        adder.add(Keys.PANEL_SETTINGS_BRAIN_TOOLS_NONE, "大脑工具 0 个");
+        adder.add(Keys.PANEL_SETTINGS_BRAIN_TOOLS_OFF,  "未接入外接脑,没有大脑工具");
+        adder.add(Keys.PANEL_SETTINGS_COPY,             "复制");
+        adder.add(Keys.PANEL_SETTINGS_FOLDER,           "文件夹");
+        adder.add(Keys.PANEL_SETTINGS_CFG_MISSING,      "配置文件不存在(%s),先在游戏里开一次 MCP 模式让它生成");
+        adder.add(Keys.PANEL_SETTINGS_NO_SNAPSHOT,      "无快照");
+        adder.add(Keys.PANEL_SETTINGS_AGO,              "%s 秒前");
+        adder.add(Keys.PANEL_SETTINGS_LEASE_SEC,        "%s 秒");
+        adder.add(Keys.PANEL_SETTINGS_NO_REQUEST,       "还没有请求");
+        adder.add(Keys.PANEL_SETTINGS_LEASE_LOST,       "已失联,身体在安全待机");
+        adder.add(Keys.PANEL_SETTINGS_NOT_FOUND,        "未找到");
     }
 }

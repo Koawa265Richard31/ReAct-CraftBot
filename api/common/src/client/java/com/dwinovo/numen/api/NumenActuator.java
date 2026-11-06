@@ -1,5 +1,7 @@
 package com.dwinovo.numen.api;
 
+import com.dwinovo.numen.agent.loop.LoopStatus;
+import com.dwinovo.numen.agent.loop.Phase;
 import com.dwinovo.numen.agent.provider.LlmToolCall;
 import com.dwinovo.numen.agent.tool.ClientToolContext;
 import com.dwinovo.numen.agent.tool.NumenTool;
@@ -7,11 +9,15 @@ import com.dwinovo.numen.agent.tool.ToolCall;
 import com.dwinovo.numen.agent.tool.ToolRegistry;
 import com.dwinovo.numen.client.agent.AgentLoopRegistry;
 import com.dwinovo.numen.client.agent.ClientNumenLookup;
+import com.dwinovo.numen.client.agent.EntityAgentLoop;
 import com.dwinovo.numen.client.agent.NumenRoster;
 import com.dwinovo.numen.agent.tool.ScriptTool;
+import com.dwinovo.numen.network.payload.CancelTasksPayload;
 import com.dwinovo.numen.network.payload.DismissRequestPayload;
+import com.dwinovo.numen.network.payload.StopCurrentProgramPayload;
 import com.dwinovo.numen.network.payload.SummonRequestPayload;
 import com.dwinovo.numen.network.NumenNetwork;
+import com.dwinovo.numen.program.ProgramUplink;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.AbstractClientPlayer;
 
@@ -74,6 +80,16 @@ public final class NumenActuator {
     private static final String PROGRAM_PREFIX = "ext-";
     /** Ids of the other tools an external brain calls (tools of remote MCP servers), disjoint from the LLM's ids. */
     private static final String TOOL_PREFIX = "mcp-";
+
+    /**
+     * 外脑此刻在跑的那段程序:runExternal 收下了才记,回执(以任何方式)落地就摘。程序在服务端上,
+     * 这台客户端看不见服务端的登记——谁在跑、编号是什么,只有这张表握着,{@link #stop} 靠它拿到
+     * 「该停哪段」的编号。一只同伴至多一段在跑({@code AgentLoop#runAside} 拒第二段),表里至多一条。
+     */
+    private record ExtRun(String programId, CompletableFuture<String> receipt) {}
+
+    private static final java.util.concurrent.ConcurrentHashMap<UUID, ExtRun> EXT_PROGRAMS =
+            new java.util.concurrent.ConcurrentHashMap<>();
 
     private NumenActuator() {}
 
@@ -275,7 +291,12 @@ public final class NumenActuator {
                     if (!AgentLoopRegistry.getOrCreate(companion).runExternal(program, f::complete)) {
                         f.complete(com.dwinovo.numen.agent.llm.ToolOutcome.failure("a program is already running for this companion, or its "
                                 + "built-in brain is acting; wait for it to end"));
+                        return;
                     }
+                    // 收下了就记进表,stop 工具才有编号可停;回执落地(成、败、异常都算)就摘。
+                    ExtRun run = new ExtRun(program.id(), f);
+                    EXT_PROGRAMS.put(companion, run);
+                    f.whenComplete((result, err) -> EXT_PROGRAMS.remove(companion, run));
                     return;
                 }
                 AbstractClientPlayer body = ClientNumenLookup.resolve(companion);
@@ -289,5 +310,121 @@ public final class NumenActuator {
             }
         });
         return f;
+    }
+
+    // ---- stop:停掉这具身体上正在执行的一切 ----
+
+    /** stop 工具的一次请求:停哪具身体。(API 参数必须是 record,不能是裸值。) */
+    public record StopRequest(UUID companion) {}
+
+    /**
+     * stop 的回执:停了什么(程序/任务的名字或类型)、之前在不在跑、停在了哪里。
+     *
+     * @param wasRunning 从这台客户端看,发出停的那一刻有没有东西在跑(服务端自己起、这台客户端
+     *                   看不见的那段程序不计入——但停的闸照样发过去,见 {@link #stop})
+     * @param program   被停的那段程序(编号或类型);没有程序被停是 null
+     * @param task      被叫停的那件身体活(服务端推来的镜像里那句人话);没有是 null
+     * @param stoppedAt 程序停在了哪里(当场切断;她的回合被停时,回执去了哪也写在这句里)
+     * @param receipt   被停的那段外脑程序交回的回执原文(「这一轮在哪里被切断」的完整账)。只有
+     *                  外脑自己那段等得到——回执沿原路交回它那次 tools/call;别的段没有,是 null
+     */
+    public record StopReport(boolean wasRunning, String program, String task, String stoppedAt, String receipt) {
+
+        /** 从这台客户端看什么都没在跑:幂等的成功回执(wasRunning=false,不是错误)。 */
+        public static StopReport nothingRunning() {
+            return new StopReport(false, null, null, null, null);
+        }
+    }
+
+    /**
+     * 停掉 {@code request.companion()} 这具身体上正在执行的一切:在跑的程序与正在做的身体活。两条线
+     * <b>都发、一口气发</b>——{@code Program.cancel} 的回执照实说等着的那件身体活停没停,前提是身体叫停
+     * ({@code CancelTasksPayload},与主人按停止同一条路)真的也发了,谁也不许只发一半。程序那一道分两式:
+     * 外脑自己那段按 {@link #EXT_PROGRAMS} 里握着的编号切断,回执沿原路交回它那次 tools/call;别的段——
+     * 主人在游戏里 {@code /numen drive} 起、重启重放起的,不经外脑的手、这台客户端也看不见——走「不认编号」
+     * 的服务端变体({@code StopCurrentProgramPayload}),范围只在<b>这一具</b>身体上。
+     *
+     * <p>幂等:从这台客户端看什么都没在跑,照样成功,{@code wasRunning=false},不报错。此时空闸照发
+     * ({@code StopCurrentProgramPayload} + 无活可撤的身体叫停):服务端自己起的那段程序这台客户端看不见,
+     * 空闸在服务端空转、无害,真有一段漏网的就此收掉——所以 {@code wasRunning=false} 说的是「<b>我这边</b>
+     * 没东西在跑」,不担保服务端一段也没有。
+     *
+     * <p>外脑自己那段等它的回执落地才交回执——「停在哪」的完整账在回执里,而且回执落地才算让出了
+     * 服务端的程序槽,stop 之后立刻重派一段不会被「wait for it to end」拒绝。
+     *
+     * <p>不弹审批:调用方握着主人的令牌,等同于主人,这一路就是 OWNER_STOP 的语义。她自己定的表
+     * ({@code TimerRegistry})不在停的范围内:表只是到点发一条事件的日程,不是正在执行的活。
+     */
+    public static CompletableFuture<StopReport> stop(StopRequest request) {
+        CompletableFuture<StopReport> f = new CompletableFuture<>();
+        if (request == null || request.companion() == null) {
+            f.complete(StopReport.nothingRunning());
+            return f;
+        }
+        UUID companion = request.companion();
+        // 一切入口都切到客户端主线程。跳板经方法引用接住,与同文件现有各入口同一做法。
+        java.util.function.Consumer<Runnable> onto = Minecraft.getInstance()::execute;
+        onto.accept(() -> {
+            try {
+                stopNow(companion, f);
+            } catch (RuntimeException ex) {
+                f.completeExceptionally(ex);
+            }
+        });
+        return f;
+    }
+
+    /**
+     * 主线程上的一次 stop:看清在跑什么,一口气把两道闸都发出去。三条路互斥地走:
+     * 外脑自己那段(编号在握)→ 按编号切断 + 叫停身体;内核自己在跑一批 → 主人停止同款 halt(OWNER_STOP),
+     * 它自己两件都做;都不是 → 发「不认编号」的程序叫停,身体活在跑就同时叫停身体。
+     *
+     * <p>外脑那段<b>不走</b> halt(OWNER_STOP):halt 会把这次 tools/call 的回执改道进收件箱
+     * ({@code ProgramUplink#afterwards}),外脑的 future 永远落不了地,外接程序的槽也跟着卡死——
+     * 按编号直发切断,回执沿原路交回,槽自然松开。
+     */
+    private static void stopNow(UUID companion, CompletableFuture<StopReport> out) {
+        ExtRun ext = EXT_PROGRAMS.get(companion);
+        EntityAgentLoop loop = AgentLoopRegistry.get(companion).orElse(null);
+        LoopStatus status = loop == null ? null : loop.status();
+        boolean kernelBusy = status != null && status.phase() == Phase.TOOLS;
+        String task = status != null && status.bodyTaskRunning() ? status.activity() : null;
+
+        if (ext != null) {
+            // 两道闸按 OWNER_STOP 的次序发:先切断程序(回执照实说身体活停没停),再叫停身体。
+            ProgramUplink.CONNECTION.cutOff(companion, ext.programId(), true);
+            NumenNetwork.sendToServer(new CancelTasksPayload(companion));
+            String program = ext.programId().concat(" (your program)");
+            String where = "cut off at once (the call in flight was abandoned)";
+            // 回执沿原路交回它那次 tools/call;这里等它落地,把回执原文补进这份回执再交。
+            // 完成方在主人客户端的主线程(deliver 那一条链),回调不需要再切线程。
+            ext.receipt().whenComplete((result, err) -> out.complete(new StopReport(true, program, task, where,
+                    err == null && result != null
+                            ? com.dwinovo.numen.agent.llm.ToolOutcome.modelText(result) : null)));
+            return;
+        }
+        if (kernelBusy) {
+            // 内核自己在跑一批(她的那一轮):主人按停止同款——收工具口(在飞程序切断、身体叫停都在里面)、
+            // 记切断点、清被取代的指令。她的回执作为事件进收件箱,外脑经 get_events 看得到。
+            loop.abort();
+            out.complete(new StopReport(true, "the companion's own in-flight turn", task,
+                    "cut off at once; the turn's receipt lands in her inbox as an event", null));
+            return;
+        }
+        // 不是外脑那段,也不是内核在跑的一批:程序那一道只有「不认编号」的服务端变体走得到——
+        // 服务端自己起的那段在这台客户端上根本看不见。身体叫停按镜像里有没有活来发,stopBody 与它一致,
+        // 程序的回执才不会说反。
+        boolean bodyStop = task != null;
+        NumenNetwork.sendToServer(new StopCurrentProgramPayload(companion, bodyStop));
+        if (bodyStop) {
+            NumenNetwork.sendToServer(new CancelTasksPayload(companion));
+            out.complete(new StopReport(true, null, task,
+                    "the task winds down on the server's next tick and reports as a task_finished(status=stopped) event",
+                    null));
+        } else {
+            out.complete(new StopReport(false, null, null,
+                    "nothing was running on this client; a program started on the server side (if any) was "
+                            + "sent the same stop", null));
+        }
     }
 }

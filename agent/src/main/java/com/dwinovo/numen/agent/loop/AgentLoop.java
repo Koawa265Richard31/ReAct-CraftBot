@@ -4,6 +4,7 @@ import com.dwinovo.numen.agent.http.CancelToken;
 import com.dwinovo.numen.agent.inbox.EventQueue;
 import com.dwinovo.numen.agent.inbox.EventTypes;
 import com.dwinovo.numen.agent.llm.ConvoState;
+import com.dwinovo.numen.agent.llm.ToolOutcome;
 import com.dwinovo.numen.agent.provider.AssistantTurn;
 import com.dwinovo.numen.agent.provider.LlmToolCall;
 import com.dwinovo.numen.ai.AiLog;
@@ -169,16 +170,22 @@ public final class AgentLoop {
 
             @Override
             public void finished(LlmToolCall c, String resultJson) {
-                Consumer<String> reply = aside;
+                // 只结算自己这一段:切断后旧端口的迟到回执不能把后来装上的 aside 清掉、也不能替它回话
+                if (aside != done) {
+                    return;
+                }
                 aside = null;
-                if (reply != null) {
-                    reply.accept(resultJson);
+                if (done != null) {
+                    done.accept(resultJson);
                 }
             }
 
             @Override
             public void settled() {
-                aside = null;
+                // 同理:不是本批次的迟到结算只让内核再看一眼,槽位留给现在这一段
+                if (aside == done) {
+                    aside = null;
+                }
                 pump();
             }
         });
@@ -567,6 +574,17 @@ public final class AgentLoop {
         Run cut = run;
         // 先收工具口、再作废 run:在跑的脚本这时交出它停在哪一行的回执,还记在这次 run 名下进历史
         List<String> abandoned = tools.cancel(reason.stopsBody());
+        // 外接大脑借工具口跑的那一段程序同样在这一刻作废。SerialCalls.cancel 只清自己的 sink、
+        // 一个回调都不发;程序那一头又由 CompanionToolPort.cancel 改道给 afterCut(回执作为事件进收件箱)。
+        // aside 若不清,runAside 会永远返回"已有一段在跑",内核的 step 也永远被它挡住——死亡、断线、
+        // 驾驶席翻转都会走到这里,而这三种路径上没人会再碰 aside。所以在这里以一条失败回话结束它,
+        // 与"程序已被切断、回执另送"的口径一致(迟到的结果不会再回一次:aside 已经为空)。
+        Consumer<String> asideCut = aside;
+        aside = null;
+        if (asideCut != null) {
+            asideCut.accept(ToolOutcome.failure("the program was cut off (" + reason.name()
+                    + "); any late receipt arrives as an event"));
+        }
         if (cut != null) {
             run = null;
             cut.cancel.cancel();

@@ -403,8 +403,8 @@ public final class EntityAgentLoop {
     void clientTick() {
         dispatcher.tick();
         presenter.tick();
-        // 驾驶席翻转成外接的那一下作废在飞的回合:接管之后内脑的回复不该再派工具、压缩不该再换历史。
-        // 交还不用做什么——停牌是现算的,内核下一次推进自己看得见。
+        // 外接大脑模式开上的那一下作废在飞的回合:驾驶期间内脑停牌,它的回复不该再派工具、压缩不该再换历史。
+        // 关掉不用做什么——停牌是现算的,内核下一次推进自己看得见;模式开着期间驾驶席不会交还。
         boolean driving = McpMode.instance().driving();
         if (driving && !wasDriving) {
             loop.halt(HaltReason.EXTERNAL);
@@ -505,8 +505,9 @@ public final class EntityAgentLoop {
      * 长轮询靠它省着等;到点了不管急不急有什么给什么。渲染与内脑注入同一份 {@link EventQueue#render}
      * ——外脑看到的事件文本和内脑一字不差。
      *
-     * <p>控制条目(整理/清空)是对内脑说的:跳过它们、留在队里等交还,文本照取。外接模型不会去执行
-     * 控制条目,停在队首的话后面的话就永远取不到。
+     * <p>控制条目(整理/清空)是对内脑说的:跳过它们、文本照取。模式开着期间它们执行不了
+     * (入口即拒,见 compactProblem/clearProblem;排上的要等主人在设置里关掉外接大脑才轮得到),
+     * 外接模型不会去执行控制条目,停在队首的话后面的话就永远取不到。
      *
      * @return 取走的事件拼段;这次没取到返回 null(继续等或如实说没有)
      */

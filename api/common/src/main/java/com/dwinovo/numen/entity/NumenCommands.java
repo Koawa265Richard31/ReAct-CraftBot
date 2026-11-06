@@ -47,7 +47,9 @@ import java.util.function.Predicate;
  *   /numen settings                  open the settings GUI on the caller's client
  *   /numen reset                     clear the caller's conversation loops
  *   /numen drive &lt;companion&gt; &lt;program&gt; (op) run a Lua program as her, through the same entry as her own;
- *                                    a name with spaces or non-ASCII letters goes in quotes
+ *                                    a name with spaces or non-ASCII letters goes in quotes;
+ *                                    while an external brain is driving, re-run with a `confirm` literal
+ *                                    before &lt;program&gt; (the first attempt only tells you so)
  *
  *   /numen permission mode &lt;name&gt; [ask|bypass|observe]     show or set a companion's permission mode
  *   /numen permission rules list                          the caller's rows, then the factory rows
@@ -109,7 +111,10 @@ public final class NumenCommands {
                         .suggests((ctx, builder) -> SharedSuggestionProvider.suggest(companionsHere(ctx.getSource())
                                 .map(body -> StringArgumentType.escapeIfRequired(body.getName().getString())), builder))
                         .then(Commands.argument("program", StringArgumentType.greedyString())
-                                .executes(NumenCommands::drive))));
+                                .executes(ctx -> drive(ctx, false)))
+                        .then(Commands.literal("confirm")
+                                .then(Commands.argument("program", StringArgumentType.greedyString())
+                                        .executes(ctx -> drive(ctx, true))))));
     }
 
     /**
@@ -135,8 +140,15 @@ public final class NumenCommands {
      *
      * <p>这条 drive 自己正在执行:原版把一条指令执行当中调起的另一条排到它之后,程序要是在这里执行,它里面的原版指令要等这条
      * drive 跑完才跑。所以交给服务器的任务队列,等这条 drive 执行完再跑。
+     *
+     * <p>驾驶席在外脑手里时({@link com.dwinovo.numen.task.DrivingMirror},与客户端
+     * {@code McpMode.driving()} 同一口径)要先过二次确认:不带 {@code confirm} 的第一次只回一句提示不动身体——
+     * 管理员调试口保留,但不该和 DSH 抢身体还抢得无声无息。程序正文以 "confirm" 一词开头的写法会先撞上字面量分支,
+     * 真要那样写就等交还后再跑。
+     *
+     * @param confirmed 命令是否带着 {@code confirm} 字面量(外接驾驶中没带就只提示)
      */
-    private static int drive(CommandContext<CommandSourceStack> ctx) {
+    private static int drive(CommandContext<CommandSourceStack> ctx, boolean confirmed) {
         CommandSourceStack caller = ctx.getSource();
         String name = StringArgumentType.getString(ctx, "companion");
         List<NumenPlayer> named = companionsHere(caller).filter(body -> body.getName().getString().equals(name)).toList();
@@ -146,6 +158,14 @@ public final class NumenCommands {
             return 0;
         }
         NumenPlayer her = named.get(0);
+        if (!confirmed && com.dwinovo.numen.task.DrivingMirror.isDriving(her)) {
+            // 门拦下:写一句(哪个口、拦了什么),给管理员指明确认写法,不静默也不动身体
+            com.dwinovo.numen.Constants.LOG.debug(
+                    "[numen-command] /numen drive on {} blocked: the external brain is driving; confirm needed",
+                    her.getUUID());
+            caller.sendFailure(Component.translatable(Keys.COMMAND_DRIVE_CONFIRM_NEEDED, her.getName().getString()));
+            return 0;
+        }
         String program = StringArgumentType.getString(ctx, "program");
         MinecraftServer server = caller.getServer();
         server.tell(new TickTask(server.getTickCount(), () -> com.dwinovo.numen.program.ServerPrograms.launch(her,

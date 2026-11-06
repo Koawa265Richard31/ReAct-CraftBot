@@ -176,7 +176,10 @@ public final class CompanionTickDispatcher {
                     brain = brainFor(ap.getUUID());
                 }
                 // 首次见到这具身体:把重启前她手上、进世界时接手的那件活接回来(见 TaskPersistence)。
-                TaskPersistence.LeftOver left = brain.takeLeftOver();
+                // 外接驾驶时按下不重放——重放是没人下令自己起活;交还后第一个 tick 自然接上,
+                // 驾驶中新派的活照旧把它顶替(见 CompanionBrain#takeLeftOverToReplay)。
+                TaskPersistence.LeftOver left =
+                        brain.takeLeftOverToReplay(ap, com.dwinovo.numen.task.DrivingMirror.isDriving(ap));
                 if (left != null) {
                     TaskPersistence.replay(ap, left);
                 }
