@@ -21,7 +21,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class McpConfigGuardTest {
 
     private static McpConfig with(String host, String token) {
-        return new McpConfig(true, host, 8765, token, 300, List.of(), 90, false);
+        return new McpConfig(true, host, 8765, token, 300, List.of(), 90, false,
+                false, "127.0.0.1", 8766, "", "");
     }
 
     // ---- 够不够得着 ----
@@ -103,7 +104,8 @@ class McpConfigGuardTest {
 
     @Test
     void withersCarryTheLeaseAlongAndClampIt() {
-        McpConfig base = new McpConfig(true, "127.0.0.1", 8765, "tok", 300, List.of(), 120, false);
+        McpConfig base = new McpConfig(true, "127.0.0.1", 8765, "tok", 300, List.of(), 120, false,
+                false, "127.0.0.1", 8766, "", "");
         McpConfig moved = base.withEndpoint("0.0.0.0", 9000, 60).withToken("x")
                 .withHiddenTools(List.of("a")).withEnabled(false).withQuietFallback(true);
         assertEquals(120, moved.leaseSeconds(), "改别的字段不该把租约改回默认");
@@ -115,7 +117,8 @@ class McpConfigGuardTest {
 
     @Test
     void eachWitherLeavesTheRestAlone() {
-        McpConfig base = new McpConfig(true, "127.0.0.1", 8765, "tok", 300, List.of("todo"), 90, false);
+        McpConfig base = new McpConfig(true, "127.0.0.1", 8765, "tok", 300, List.of("todo"), 90, false,
+                false, "127.0.0.1", 8766, "", "");
 
         McpConfig moved = base.withEndpoint("0.0.0.0", 9000, 60);
         assertEquals("tok", moved.token());
