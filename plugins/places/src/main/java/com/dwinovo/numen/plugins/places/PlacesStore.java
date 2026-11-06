@@ -1,7 +1,8 @@
 package com.dwinovo.numen.plugins.places;
 
-import com.dwinovo.numen.Constants;
 import com.mojang.serialization.Codec;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
@@ -30,6 +31,8 @@ import java.util.UUID;
  * synchronized 只是给未来可能的旁路读兜底,不为常态。
  */
 public final class PlacesStore extends SavedData {
+    private static final Logger LOG = LoggerFactory.getLogger("numen-places");
+
 
     /** 存档里的键,与同伴名册的 "numen_companions" 同风格。 */
     private static final String KEY = "numen_places";
@@ -76,7 +79,7 @@ public final class PlacesStore extends SavedData {
             return store;
         }
         CODEC.parse(NbtOps.INSTANCE, tag.get(ROWS)).resultOrPartial(error ->
-                        Constants.LOG.error("[numen-places] 她记下的地点读不回来: {}", error))
+                        LOG.error("[numen-places] 她记下的地点读不回来: {}", error))
                 .ifPresent(stored -> {
                     for (Stored row : stored) {
                         store.byDim(row.owner(), row.dim()).put(row.name(), row);
@@ -94,7 +97,7 @@ public final class PlacesStore extends SavedData {
             }
         }
         CODEC.encodeStart(NbtOps.INSTANCE, all).resultOrPartial(error ->
-                        Constants.LOG.error("[numen-places] 她的地点写不进存档: {}", error))
+                        LOG.error("[numen-places] 她的地点写不进存档: {}", error))
                 .ifPresent(encoded -> tag.put(ROWS, encoded));
         return tag;
     }
