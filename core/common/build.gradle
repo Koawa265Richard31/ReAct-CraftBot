@@ -18,9 +18,21 @@ dependencies {
     compileOnly project(':api:common')
     // 单元测试要真的跑到引擎类(排程机器随 api),运行时类路径补上同一模块。
     testImplementation project(':api:common')
+    // 平台服务的测试替身（TestPlatformHelper）随 api:common 的 test 源集发一份 test-support jar：
+    // ApiLintReport 会走 NumenCore.init() → NumenPaths.config()，纯 JUnit 里没有加载器提供的服务。
+    testImplementation project(path: ':api:common', configuration: 'testSupport')
     // 命名地点是引擎级 API 组（不属于任何外部模组），入口在 plugins:places。
     // 与 api 同理：compileOnly，类由发行 jar 平铺进去。
     compileOnly project(':plugins:places')
+    // 常驻订阅（numen.watch）同理：引擎级 API 组，入口在 plugins:watch。
+    compileOnly project(':plugins:watch')
+    // 但 core 的 ApiLintReport 测试会把全树的组过一遍，places/watch 的类在运行时得真在场。
+    // 只要 main 的输出目录（classes + resources），不要它们的 jar：numen-plugin.gradle 会把 core 的测试
+    // 运行时类路径拼到每个插件测试的最前面，而这两个 jar 里带着 plugins/*/skills 资源——类路径上先命中
+    // jar 条目，插件的 ApiLintReport 就会拿 Path.of(jar:...) 抛 FileSystemNotFoundException。
+    // 写成闭包是惰性的：core 比 plugins 先求值，配置期拿不到它们的 sourceSets。
+    testImplementation files { project(':plugins:places').sourceSets.main.output }
+    testImplementation files { project(':plugins:watch').sourceSets.main.output }
 
     compileOnly group: 'org.spongepowered', name: 'mixin', version: '0.8.5'
     // fabric and neoforge both bundle mixinextras, so it is safe to use it in common

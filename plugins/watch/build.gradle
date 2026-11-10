@@ -1,0 +1,29 @@
+plugins {
+    // 先应用 numen-plugin（它带 java-library）：VanillaGradle 在 apply 时要找
+    // JavaToolchainService，java 插件没先上就是 "Extension of type
+    // 'JavaToolchainService' does not exist"（:api:common 也是先 api-common 后 vanilla；
+    // 照 plugins/places 的写法）。
+    id 'numen-plugin'
+    // 只写原版 MC 与 numen api 的联动:对着原版编译(VanillaGradle,与 :api:common 同一条路),
+    // 三个加载器都能跑 —— 见 buildSrc 的 numen-plugin.gradle 的分工说明。
+    id 'org.spongepowered.gradle.vanilla' version '0.2.1-SNAPSHOT'
+}
+
+minecraft {
+    version(minecraft_version)
+}
+
+dependencies {
+    // 瘦 api jar 取 common 那份:三加载器通跑的联动按 numen-plugin.gradle 的规矩选 :api:common。
+    // 本联动不接任何目标模组,没有 fg.deobf、没有第三方仓库(照 places)。
+    compileOnly files(project(':api:common').tasks.named('apiJar'))
+    // watch 的命中路径要当场喊停她正在跑的程序:那个入口(ServerPrograms.interrupt)住在引擎内部包
+    // com.dwinovo.numen.program,不在瘦 api jar 里(buildSrc 的 api-common.gradle 的 include 清单
+    // 没有 program/**),也本就不该开给第三方联动。只有本模块多消费一份完整 common jar,第三方照旧
+    // 只见瘦 jar —— ServerLifecycle(关服清理的报到)同理,也只有这一份里有。
+    compileOnly files(project(':api:common').tasks.named('jar'))
+
+    // 报告类测试(WatchApiLintReport)会把全树的插件过一遍,places 的类在运行时得真在场;
+    // 只在测试作用域加,不进 jar、不影响第三方联动。
+    testImplementation files(project(':plugins:places').tasks.named('jar'))
+}

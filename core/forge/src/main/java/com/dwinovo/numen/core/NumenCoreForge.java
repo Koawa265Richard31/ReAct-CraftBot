@@ -75,5 +75,7 @@ public class NumenCoreForge {
         com.dwinovo.numen.core.nav.RouteQueries.serverTick(server);
         // Debug particles for pathing state, sent only to players with debug on.
         PathDebugRenderer.serverTick(server);
+        // 她的常驻哨兵(numen.watch):到点求值一轮,命中就打断她正在跑的程序。见 plugins/watch/WIRING.md。
+        com.dwinovo.numen.plugins.watch.NumenWatch.tick(server);
     }
 }

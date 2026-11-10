@@ -107,8 +107,10 @@ class CoreGroupsTest {
         assertTrue(planHelp.contains("\n---@field costs? ") && planHelp.contains("\n---@field stops? ")
                 && planHelp.contains("\n---@field avoid_break? ") && planHelp.contains("\n---@class Plan\n"), planHelp);
         String moveHelp = help("numen.move");
-        assertEquals(List.of("dismount", "follow", "go", "to", "flee", "explore"), functions(moveHelp, "move"),
-                "库函数与函数都列在组里: " + moveHelp);
+        // fly/fly_to 随基线 4d491a0 的 flight 补丁进了 MoveApi,断言没跟上,一直是红的;
+        // 顺序按声明序,与 help 渲染一致。
+        assertEquals(List.of("dismount", "fly", "fly_to", "follow", "go", "to", "flee", "explore"),
+                functions(moveHelp, "move"), "库函数与函数都列在组里: " + moveHelp);
         assertTrue(moveHelp.contains("\n---@field to fun(target: Pos|Block|Entity|table, spec?: table): "
                 + "{pos: Pos, distance_left: number} Walk to a place in one call: numen.route.plan with the description "
                 + "and to = target, then numen.move.go.\n"), "库函数的说明是它注释的第一句: " + moveHelp);

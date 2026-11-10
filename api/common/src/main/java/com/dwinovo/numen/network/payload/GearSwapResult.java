@@ -16,6 +16,13 @@ import net.minecraft.world.item.ItemStack;
  * the state from before it ran. The two ends are left empty only when nothing could be read at all:
  * a request refused before reaching the body (not the sender's companion, unknown direction), or a
  * receipt whose transaction was swept away without its body.
+ *
+ * <p>M3 起转移方向(dir 2 取回 / 3 交给 / 4 交换,协议 2)共用这张回执:{@code wornAfter} 与
+ * {@code ownerAfter} 携带 (fromAfter, toAfter)——请求里源格与目的格之后的现状,与 from/to 同序。
+ * M4 的容器方向(dir 5 取出 / 6 放入,协议 3)同口径:{@code wornAfter}/{@code ownerAfter} 照
+ * from→to 携带盒内那格与背包那格的现状。容器其余内格不在回执里,面板随后拉一次
+ * BoxReadRequest 重画整盒(读是另一对独立载荷)。
+ * <b>协议 3:M4 起 payload 能指进物品自带容器,两端必须同版。</b>
  */
 public record GearSwapResult(long txId, boolean ok, String reason,
                                     ItemStack wornAfter, ItemStack ownerAfter) implements NumenPayload {

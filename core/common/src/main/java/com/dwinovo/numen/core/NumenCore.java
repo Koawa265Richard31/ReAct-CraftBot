@@ -117,6 +117,8 @@ public final class NumenCore {
             com.dwinovo.numen.core.tools.time.TimeApi.install(numen);
             // 命名地点：她自己的记忆点，不依赖任何外部模组，无条件装。
             com.dwinovo.numen.plugins.places.NumenPlaces.install(numen);
+            // 常驻订阅（numen.watch）：命中就打断她的程序，不依赖任何外部模组，无条件装。
+            com.dwinovo.numen.plugins.watch.NumenWatch.install(numen);
         });
     }
 

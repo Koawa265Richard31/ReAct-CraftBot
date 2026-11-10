@@ -74,3 +74,5 @@ include('plugins:curios')
 include('plugins:ftbquests')
 // 她自己的命名地点:不接目标模组、三加载器通跑(见 plugins/places/build.gradle 头注)。
 include('plugins:places')
+// 她的常驻哨兵:命中就打断,不接目标模组、三加载器通跑(见 plugins/watch/build.gradle 头注与 WIRING.md)。
+include('plugins:watch')

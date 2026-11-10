@@ -319,6 +319,7 @@ public final class NumenNetwork {
 
         // C→S: the gear panel asks to wear / take off one slot (optimistic, txId-guarded);
         // S→C: the one receipt for it — ok / reason / the two ends after the move.
+        // 协议 3 起 dir 5/6(背包 ⇄ 物品自带容器)共用同一对载荷。
         toServer(
                 com.dwinovo.numen.network.payload.GearSwapRequest.ID,
                 com.dwinovo.numen.network.payload.GearSwapRequest::read,
@@ -327,5 +328,17 @@ public final class NumenNetwork {
                 com.dwinovo.numen.network.payload.GearSwapResult.ID,
                 com.dwinovo.numen.network.payload.GearSwapResult::read,
                 com.dwinovo.numen.network.payload.GearSwapResult::handle);
+
+        // C→S (M4, protocol 3): the panel asks to open one item-borne container (a box: address) —
+        // a pure snapshot, no tx table, idempotent on resend;
+        // S→C: its contents (honestly truncated when one packet tops out) + the whole box as it stands.
+        toServer(
+                com.dwinovo.numen.network.payload.BoxReadRequest.ID,
+                com.dwinovo.numen.network.payload.BoxReadRequest::read,
+                com.dwinovo.numen.network.payload.BoxReadRequest::handle);
+        toClient(
+                com.dwinovo.numen.network.payload.BoxReadResult.ID,
+                com.dwinovo.numen.network.payload.BoxReadResult::read,
+                com.dwinovo.numen.network.payload.BoxReadResult::handle);
     }
 }

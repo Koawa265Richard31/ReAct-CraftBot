@@ -44,7 +44,13 @@ import java.util.function.Function;
  */
 public final class ForgeNetworkChannel implements INetworkChannel {
 
-    private static final String PROTOCOL_VERSION = "1";
+    /**
+     * 协议 3(M4):payload 能指进物品自带容器——GearSwapRequest 末尾追加 fromRef/toRef/expectBox 三个
+     * 字段并新增 dir 5/6(盒内格 ⇄ 背包格),另有 BoxReadRequest/BoxReadResult 一对读包;线上格式变了,
+     * 两端必须同版——通道两侧用本值严格比对,不同版本直接连不上;旧客户端连新服务端能连上但状态静默
+     * 错乱(新字段在旧端读出的是错位的字节),比连不上更难查,所以 payload 一改就升版。
+     */
+    private static final String PROTOCOL_VERSION = "3";
 
     private static final ResourceLocation CHANNEL_ID = new ResourceLocation(Constants.MOD_ID, "main");
 

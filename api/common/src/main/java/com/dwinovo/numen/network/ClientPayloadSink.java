@@ -34,4 +34,6 @@ public final class ClientPayloadSink {
     public static volatile Consumer<PathDebugPayload> pathDebug = p -> {};
     public static volatile Consumer<ClientUiActionPayload> uiAction = p -> {};
     public static volatile Consumer<com.dwinovo.numen.network.payload.GearSwapResult> gearSwap = p -> {};
+    /** M4(协议 3):容器读回执——面板据此画整盒内格;客户端入口装处理体之前是 no-op。 */
+    public static volatile Consumer<com.dwinovo.numen.network.payload.BoxReadResult> boxRead = p -> {};
 }

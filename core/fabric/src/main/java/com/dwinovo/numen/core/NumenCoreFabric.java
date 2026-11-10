@@ -48,6 +48,8 @@ public class NumenCoreFabric implements ModInitializer {
         ServerTickEvents.END_SERVER_TICK.register(com.dwinovo.numen.core.nav.RouteQueries::serverTick);
         // Debug particles for pathing state, sent only to players with debug on.
         ServerTickEvents.END_SERVER_TICK.register(PathDebugRenderer::serverTick);
+        // 她的常驻哨兵(numen.watch):到点求值一轮,命中就打断她正在跑的程序。见 plugins/watch/WIRING.md。
+        ServerTickEvents.END_SERVER_TICK.register(com.dwinovo.numen.plugins.watch.NumenWatch::tick);
         // Debug verbs merged into the /numen root registered by the engine mod.
         CommandRegistrationCallback.EVENT.register(
                 (dispatcher, registryAccess, environment) -> DebugCommands.register(dispatcher));

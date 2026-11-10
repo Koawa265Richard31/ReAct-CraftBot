@@ -440,6 +440,22 @@ public final class ModLanguageData {
         public static final String PANEL_CHAR_WRITE_NOSLOT   = "numen.panel.char.write_noslot";
         /** 回执超时退回原状时页头那句。 */
         public static final String PANEL_CHAR_WRITE_TIMEOUT  = "numen.panel.char.write_timeout";
+        /** M3 双向转移:「我的背包」区节头与空态,点选/收笔的四句页头提示。 */
+        public static final String PANEL_CHAR_MYBACKPACK        = "numen.panel.char.my_backpack";
+        public static final String PANEL_CHAR_MYBACKPACK_EMPTY  = "numen.panel.char.my_backpack_empty";
+        public static final String PANEL_CHAR_TRANSFER_SELECTED = "numen.panel.char.transfer_selected";
+        public static final String PANEL_CHAR_TRANSFER_SAMESIDE = "numen.panel.char.transfer_sameside";
+        public static final String PANEL_CHAR_TRANSFER_EMPTY    = "numen.panel.char.transfer_empty";
+        public static final String PANEL_CHAR_TRANSFER_GEAR     = "numen.panel.char.transfer_gear";
+        public static final String PANEL_CHAR_BOX_HER           = "numen.panel.char.box_her";
+        public static final String PANEL_CHAR_BOX_MY            = "numen.panel.char.box_my";
+        public static final String PANEL_CHAR_BOX_NONE          = "numen.panel.char.box_none";
+        public static final String PANEL_CHAR_BOX_EMPTY         = "numen.panel.char.box_empty";
+        public static final String PANEL_CHAR_BOX_ARMED         = "numen.panel.char.box_armed";
+        public static final String PANEL_CHAR_BOX_SAMESIDE      = "numen.panel.char.box_sameside";
+        public static final String PANEL_CHAR_BOX_STALE         = "numen.panel.char.box_stale";
+        public static final String PANEL_CHAR_BOX_TRUNC         = "numen.panel.char.box_trunc";
+        public static final String PANEL_CHAR_BOX_INNER_EMPTY   = "numen.panel.char.box_inner_empty";
 
         // 设置页(SettingsPage)外接脑区块与二级列表:状态组/8766 组/文件组/工具组的
         // 标签、行注与空态,搬迁时从字面量收进来,键名照面板骨架的 panel 段。
@@ -1048,12 +1064,28 @@ public final class ModLanguageData {
         adder.add(Keys.PANEL_CHAR_BACKPACK,       "Backpack");
         adder.add(Keys.PANEL_CHAR_BACKPACK_EMPTY, "(Backpack not synced)");
         adder.add(Keys.PANEL_CHAR_HOTBAR,         "Hotbar");
-        adder.add(Keys.PANEL_CHAR_EXTRA,          "Extra space");
+        adder.add(Keys.PANEL_CHAR_EXTRA,          "Containers");
         adder.add(Keys.PANEL_CHAR_WRITE,          "Let me touch her backpack");
         adder.add(Keys.PANEL_CHAR_WRITE_LOCKED,   "Write access is off");
         adder.add(Keys.PANEL_CHAR_WRITE_PENDING,  "Previous action is still in flight");
         adder.add(Keys.PANEL_CHAR_WRITE_NOSLOT,   "Can't tell which slot takes this");
         adder.add(Keys.PANEL_CHAR_WRITE_TIMEOUT,  "No receipt arrived — look her over, then retry");
+        adder.add(Keys.PANEL_CHAR_MYBACKPACK,        "My backpack");
+        adder.add(Keys.PANEL_CHAR_MYBACKPACK_EMPTY,  "(Local inventory unavailable)");
+        adder.add(Keys.PANEL_CHAR_TRANSFER_SELECTED, "Slot picked on your side — now click one of her backpack slots");
+        adder.add(Keys.PANEL_CHAR_TRANSFER_SAMESIDE, "Both slots are on the same side — pick one from each backpack");
+        adder.add(Keys.PANEL_CHAR_TRANSFER_EMPTY,    "Both slots are empty — nothing to move");
+        adder.add(Keys.PANEL_CHAR_TRANSFER_GEAR,     "Transfers go between the two backpacks — gear slots only take off");
+        // CharacterPage containers (M4): section title, empty states, box gestures, staleness, truncation.
+        adder.add(Keys.PANEL_CHAR_BOX_HER,         "her");
+        adder.add(Keys.PANEL_CHAR_BOX_MY,          "my");
+        adder.add(Keys.PANEL_CHAR_BOX_NONE,        "(No openable containers in either backpack)");
+        adder.add(Keys.PANEL_CHAR_BOX_EMPTY,       "the box is empty");
+        adder.add(Keys.PANEL_CHAR_BOX_ARMED,       "Inner slot picked — click an empty backpack slot to take out, an occupied one to put in");
+        adder.add(Keys.PANEL_CHAR_BOX_SAMESIDE,    "Box selection cleared — a box move goes between one inner slot and one backpack slot");
+        adder.add(Keys.PANEL_CHAR_BOX_STALE,       "The box changed on the server — what is drawn may be stale; click the container again to re-read");
+        adder.add(Keys.PANEL_CHAR_BOX_TRUNC,       "One packet could not carry the whole box — only the slots that arrived are drawn; the rest are unknown, not empty");
+        adder.add(Keys.PANEL_CHAR_BOX_INNER_EMPTY, "Both ends are empty — nothing to move");
 
         // SettingsPage: external-brain block labels, row notes, empty states.
         adder.add(Keys.PANEL_SETTINGS_EXTERNAL,         "External brain");
@@ -1641,12 +1673,28 @@ public final class ModLanguageData {
         adder.add(Keys.PANEL_CHAR_BACKPACK,       "背包");
         adder.add(Keys.PANEL_CHAR_BACKPACK_EMPTY, "（背包未同步）");
         adder.add(Keys.PANEL_CHAR_HOTBAR,         "快捷栏");
-        adder.add(Keys.PANEL_CHAR_EXTRA,          "额外空间");
+        adder.add(Keys.PANEL_CHAR_EXTRA,          "容器");
         adder.add(Keys.PANEL_CHAR_WRITE,          "允许我动她的背包");
         adder.add(Keys.PANEL_CHAR_WRITE_LOCKED,   "写权限关着");
         adder.add(Keys.PANEL_CHAR_WRITE_PENDING,  "上一个操作还没回来");
         adder.add(Keys.PANEL_CHAR_WRITE_NOSLOT,   "定不下穿到哪个槽");
         adder.add(Keys.PANEL_CHAR_WRITE_TIMEOUT,  "没等到回执,请查看她的状态后再试");
+        adder.add(Keys.PANEL_CHAR_MYBACKPACK,        "我的背包");
+        adder.add(Keys.PANEL_CHAR_MYBACKPACK_EMPTY,  "（本地背包不可用）");
+        adder.add(Keys.PANEL_CHAR_TRANSFER_SELECTED, "已选中我这格,再点她背包一格完成转移");
+        adder.add(Keys.PANEL_CHAR_TRANSFER_SAMESIDE, "两格在同一侧,两边背包各点一格才构成转移");
+        adder.add(Keys.PANEL_CHAR_TRANSFER_EMPTY,    "两格都空着,没有可搬的东西");
+        adder.add(Keys.PANEL_CHAR_TRANSFER_GEAR,     "转移只在两边背包格之间,穿戴槽只做取下");
+        // 角色页容器区(M4):节题、空态、盒内手势、过期与截断。
+        adder.add(Keys.PANEL_CHAR_BOX_HER,         "她");
+        adder.add(Keys.PANEL_CHAR_BOX_MY,          "我");
+        adder.add(Keys.PANEL_CHAR_BOX_NONE,        "（两边背包里没有可展开的容器）");
+        adder.add(Keys.PANEL_CHAR_BOX_EMPTY,       "盒是空的");
+        adder.add(Keys.PANEL_CHAR_BOX_ARMED,       "已选盒内格——点空背包格是取出,点有物的背包格是放入");
+        adder.add(Keys.PANEL_CHAR_BOX_SAMESIDE,    "盒内选格撤了——容器操作只在盒内格与背包格之间");
+        adder.add(Keys.PANEL_CHAR_BOX_STALE,       "盒子在服务端动过了,画着的可能旧了——再点容器格重读");
+        adder.add(Keys.PANEL_CHAR_BOX_TRUNC,       "一个包装不下一整盒——只画送到的那些格,后面是「不知道」,不是空的");
+        adder.add(Keys.PANEL_CHAR_BOX_INNER_EMPTY, "两头都空着,没有可动的东西");
 
         // 设置页:外接脑区块与二级列表的标签、行注与空态。
         adder.add(Keys.PANEL_SETTINGS_EXTERNAL,         "外接脑");

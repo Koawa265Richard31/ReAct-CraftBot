@@ -10,8 +10,14 @@
 | `dsh/` | 把 Numen 接到 DeepSeek Harness 的胶水：心跳插件、preset 片段 | **MIT**（见 `LICENSE-MIT`） |
 | `scripts/` | 构建、语言包注入、部署脚本 | **MIT** |
 | `skills/` | 给 agent 用的技能文档 | **MIT** |
+| `plugins/places/` | 命名地点（`numen.place.*`，按存档持久化、按维度分开）——**我方新写**，结构照 `plugins/tlm` 但代码与类名全新 | **MIT** |
+| `plugins/watch/` | 条件订阅与喊停（`numen.watch.*`：原语/与或非/边沿/反射白名单/事件 JSONL 落盘）——**我方新写** | **MIT** |
+| `api/tools/ui-textures/pixelarticons.py` | 界面贴图生成脚本——**我方新写** | **MIT** |
 
 > `dsh/`、`scripts/`、`skills/` 三个目录随 P1（工具逐函数暴露）一并加入；当前提交里可能尚未存在。
+>
+> `plugins/` 下其余目录（`tlm`、`curios`、`ysm`、`ftbquests`、`kaleidoscope`）源自上游，仍按第 9 行归入
+> **LGPL-3.0-only**，没有逐目录另列。`tools/extract_terrain.py` 同样是上游基线里的文件，保持 LGPL、头部不动。
 >
 > **人格文件（`persona*.md`）不含在本仓库内**：它是本项目自己的角色设定，属于私人内容。
 > 仓库里的 preset 片段会引用一个空的 `persona.md` 占位，使用者自己写。

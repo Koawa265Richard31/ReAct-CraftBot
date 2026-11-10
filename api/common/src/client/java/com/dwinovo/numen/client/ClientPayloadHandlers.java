@@ -61,6 +61,8 @@ public final class ClientPayloadHandlers {
         ClientPayloadSink.uiAction = ClientPayloadHandlers::handleUiAction;
         // M2 穿脱回执:面板角色页认领在飞的那笔,按回执的 wornAfter/ownerAfter 重画
         ClientPayloadSink.gearSwap = com.dwinovo.numen.client.screen.panel.CharacterPage::acceptGearSwapResult;
+        // M4 容器读回执:面板角色页认领在飞的读,以回执的内格清单重画整盒(内容只来自服务端事实)
+        ClientPayloadSink.boxRead = com.dwinovo.numen.client.screen.panel.CharacterPage::acceptBoxReadResult;
     }
 
     private static void handleCompanionList(CompanionListPayload p) {

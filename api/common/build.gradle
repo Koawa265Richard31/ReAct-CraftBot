@@ -61,12 +61,25 @@ configurations {
         canBeResolved = false
         canBeConsumed = true
     }
+    // 测试替身(TestPlatformHelper + 它的 ServiceLoader 注册文件)给兄弟模块的单元测试用:
+    // core 的 ApiLintReport 要真把组过一遍,而它一碰 NumenPaths 就要平台服务。只在测试作用域消费,
+    // 不进任何发行产物(classifier 为 test-support 的独立 jar)。
+    testSupport {
+        canBeResolved = false
+        canBeConsumed = true
+    }
+}
+
+tasks.register('testSupportJar', Jar) {
+    archiveClassifier = 'test-support'
+    from sourceSets.test.output
 }
 
 artifacts {
     commonJava sourceSets.main.java.sourceDirectories.singleFile
     commonClientJava sourceSets.client.java.sourceDirectories.singleFile
     commonResources sourceSets.main.resources.sourceDirectories.singleFile
+    testSupport tasks.named('testSupportJar')
 }
 
 // Implement mcgradleconventions loader attribute
